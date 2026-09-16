@@ -1,0 +1,53 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  passwordHash String
+  name         String
+  createdAt    DateTime @default(now())
+
+  sessions InterviewSession[]
+}
+
+model InterviewSession {
+  id              String   @id @default(uuid())
+  userId          String
+  user            User     @relation(fields: [userId], references: [id])
+  jobDescription  String
+  resumeText      String
+  status          String   @default("in_progress") // in_progress | completed
+  createdAt       DateTime @default(now())
+
+  messages     Message[]
+  feedback     Feedback?
+}
+
+model Message {
+  id        String   @id @default(uuid())
+  sessionId String
+  session   InterviewSession @relation(fields: [sessionId], references: [id])
+  role      String   // "ai" | "user"
+  content   String
+  createdAt DateTime @default(now())
+}
+
+model Feedback {
+  id                  String   @id @default(uuid())
+  sessionId           String   @unique
+  session             InterviewSession @relation(fields: [sessionId], references: [id])
+  overallScore         Int
+  clarityScore         Int
+  relevanceScore       Int
+  depthScore           Int
+  confidenceScore      Int
+  summary              String
+  createdAt            DateTime @default(now())
+}

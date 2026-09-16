@@ -1,0 +1,16 @@
+services:
+  backend:
+    build: ./apps/backend
+    ports:
+      - "4000:4000"
+    env_file:
+      - ./apps/backend/.env
+    volumes:
+      - ./apps/backend/src:/app/src
+
+  frontend:
+    build: ./apps/frontend
+    ports:
+      - "5173:5173"
+    depends_on:
+      - backend
