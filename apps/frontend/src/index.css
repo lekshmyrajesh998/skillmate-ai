@@ -2,27 +2,31 @@
 
 :root,
 [data-theme="light"] {
-  --color-ink: #12181B;
-  --color-paper: #F7F5F1;
-  --color-surface: #FFFFFF;
-  --color-border: rgba(0, 0, 0, 0.1);
-  --color-accent: #2F6F62;
-  --color-accent-light: #E4EEEC;
-  --color-slate: #5B6570;
-  --color-amber: #C9A227;
-  --color-red: #B3413A;
+  --bg-page: #FAFAFC;
+  --bg-page-2: #F0F0F7;
+  --bg-surface: #FFFFFF;
+  --text-primary: #12131A;
+  --text-secondary: #5A5C6E;
+  --text-tertiary: #8A8C9E;
+  --border: rgba(18, 19, 26, 0.1);
+  --accent-1: #6366F1;
+  --accent-2: #A855F7;
+  --accent-3: #06B6D4;
+  --shadow-glow: rgba(99, 102, 241, 0.15);
 }
 
 [data-theme="dark"] {
-  --color-ink: #F2F1EC;
-  --color-paper: #14181A;
-  --color-surface: #1C2124;
-  --color-border: rgba(255, 255, 255, 0.1);
-  --color-accent: #4A9C89;
-  --color-accent-light: #223330;
-  --color-slate: #9CA6AC;
-  --color-amber: #D9B94A;
-  --color-red: #D9645C;
+  --bg-page: #0B0E1A;
+  --bg-page-2: #131832;
+  --bg-surface: rgba(255, 255, 255, 0.08);
+  --text-primary: #FFFFFF;
+  --text-secondary: rgba(255, 255, 255, 0.65);
+  --text-tertiary: rgba(255, 255, 255, 0.45);
+  --border: rgba(255, 255, 255, 0.15);
+  --accent-1: #6366F1;
+  --accent-2: #A855F7;
+  --accent-3: #22D3EE;
+  --shadow-glow: rgba(139, 92, 246, 0.4);
 }
 
 html {
@@ -30,10 +34,11 @@ html {
 }
 
 body {
-  background-color: var(--color-paper);
-  color: var(--color-ink);
+  background: linear-gradient(180deg, var(--bg-page) 0%, var(--bg-page-2) 100%);
+  background-attachment: fixed;
+  color: var(--text-primary);
   font-family: 'Inter', sans-serif;
-  transition: background-color 0.2s ease, color 0.2s ease;
+  transition: background 0.25s ease, color 0.25s ease;
 }
 
 .font-display {
@@ -41,7 +46,7 @@ body {
 }
 
 ::selection {
-  background-color: var(--color-accent);
+  background-color: var(--accent-2);
   color: white;
 }
 
@@ -49,17 +54,38 @@ body {
   width: 10px;
 }
 ::-webkit-scrollbar-track {
-  background: var(--color-paper);
+  background: var(--bg-page);
 }
 ::-webkit-scrollbar-thumb {
-  background-color: var(--color-border);
+  background-color: var(--border);
   border-radius: 8px;
-  border: 2px solid var(--color-paper);
+  border: 2px solid var(--bg-page);
 }
 
 :focus-visible {
-  outline: 2px solid var(--color-accent);
+  outline: 2px solid var(--accent-1);
   outline-offset: 2px;
+}
+
+.text-gradient {
+  background: linear-gradient(90deg, var(--accent-1), var(--accent-2), var(--accent-3));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.bg-gradient-aurora {
+  background: linear-gradient(90deg, var(--accent-1), var(--accent-2), var(--accent-3));
+}
+
+.surface {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+}
+
+@keyframes drift {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  50% { transform: translate(40px, -30px) scale(1.1); }
 }
 
 @keyframes fadeIn {

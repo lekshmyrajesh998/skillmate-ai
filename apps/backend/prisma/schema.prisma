@@ -23,7 +23,9 @@ model InterviewSession {
   user            User     @relation(fields: [userId], references: [id])
   jobDescription  String
   resumeText      String
-  status          String   @default("in_progress") // in_progress | completed
+  difficulty      String   @default("mid")
+  roleType        String   @default("sde")
+  status          String   @default("in_progress")
   createdAt       DateTime @default(now())
 
   messages     Message[]

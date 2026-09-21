@@ -36,7 +36,13 @@ io.on('connection', (socket) => {
       const session = await prisma.interviewSession.findUnique({ where: { id: sessionId } })
       if (!session) return socket.emit('interview:error', 'Session not found')
 
-      const result = await generateNextQuestion(session.jobDescription, session.resumeText, [])
+      const result = await generateNextQuestion(
+        session.jobDescription,
+        session.resumeText,
+        [],
+        session.difficulty,
+        session.roleType
+      )
       await prisma.message.create({ data: { sessionId, role: 'ai', content: result.text } })
 
       socket.emit('interview:question', { text: result.text, isComplete: result.isComplete })
@@ -61,7 +67,13 @@ io.on('connection', (socket) => {
         content: m.content,
       }))
 
-      const result = await generateNextQuestion(session!.jobDescription, session!.resumeText, conversationHistory)
+      const result = await generateNextQuestion(
+        session!.jobDescription,
+        session!.resumeText,
+        conversationHistory,
+        session!.difficulty,
+        session!.roleType
+      )
       await prisma.message.create({ data: { sessionId, role: 'ai', content: result.text } })
 
       socket.emit('interview:question', { text: result.text, isComplete: result.isComplete })

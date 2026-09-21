@@ -8,12 +8,16 @@ import Signup from './pages/Signup.tsx'
 import Dashboard from './pages/Dashboard.tsx'
 import Interview from './pages/Interview.tsx'
 import Feedback from './pages/Feedback.tsx'
-import Navbar from './components/Navbar.tsx'
+import Sidebar from './components/Sidebar.tsx'
+import History from './pages/History.tsx'
+import Profile from './pages/Profile.tsx'
+import NotFound from './pages/NotFound.tsx'
+import Settings from './pages/Settings.tsx'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <BrowserRouter>
-      <Navbar />
+      <Sidebar />
       <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/login" element={<Login />} />
@@ -21,6 +25,11 @@ createRoot(document.getElementById('root')!).render(
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/interview" element={<Interview />} />
         <Route path="/feedback" element={<Feedback />} />
+        <Route path="/history" element={<History />} />
+        <Route path="/profile" element={<Profile />} />
+        <Route path="*" element={<NotFound />} />
+        <Route path="/settings" element={<Settings />} />
+        
       </Routes>
     </BrowserRouter>
   </StrictMode>,
