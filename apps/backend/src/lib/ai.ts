@@ -1,4 +1,3 @@
-
 import dotenv from 'dotenv'
 dotenv.config()
 
@@ -27,9 +26,8 @@ async function generateWithRetry(
   prompt: string,
   modelName: string
 ) {
-  const retryDelays = [2000, 4000, 8000]
-
-  for (let attempt = 0; attempt <= retryDelays.length; attempt++) {
+  // One quick retry only to keep the interview responsive
+  for (let attempt = 0; attempt < 2; attempt++) {
     try {
       const result = await model.generateContent(prompt)
 
@@ -46,8 +44,8 @@ async function generateWithRetry(
         message
       )
 
-      if (attempt < retryDelays.length) {
-        await delay(retryDelays[attempt])
+      if (attempt === 0) {
+        await delay(1500)
       }
     }
   }
@@ -72,10 +70,8 @@ export async function generateNextQuestion(
   const difficultyGuidance: Record<string, string> = {
     junior:
       'Ask foundational questions suitable for someone with 0-2 years experience. Keep questions approachable and encouraging.',
-
     mid:
       'Ask questions expecting solid hands-on experience (2-5 years). Probe for real trade-offs and decisions they made.',
-
     senior:
       'Ask challenging questions expecting deep expertise (5+ years) — system design thinking, leadership, and complex trade-offs.',
   }
@@ -83,16 +79,12 @@ export async function generateNextQuestion(
   const roleGuidance: Record<string, string> = {
     sde:
       'Focus on technical implementation, architecture decisions, and engineering trade-offs.',
-
     pm:
       'Focus on product strategy, prioritization, stakeholder management, and metrics-driven thinking.',
-
     data:
       'Focus on data pipelines, analysis rigor, experiment design, and translating data into decisions.',
-
     sales:
       'Focus on relationship building, negotiation, quota achievement, and objection handling.',
-
     marketing:
       'Focus on campaign strategy, brand thinking, growth metrics, and creative-to-data balance.',
   }
@@ -125,14 +117,12 @@ Respond with your next message now.`
 
 Begin the interview now with your first question.`
 
-  // Try the primary model first.
   let result = await generateWithRetry(
     primaryModel,
     prompt,
     'gemini-3.6-flash'
   )
 
-  // If the primary model is unavailable, use the fallback model.
   if (!result) {
     console.warn(
       'Primary Gemini model unavailable. Trying fallback model...'
@@ -164,4 +154,3 @@ Begin the interview now with your first question.`
     isComplete,
   }
 }
-

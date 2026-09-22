@@ -1,4 +1,3 @@
-
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { io, Socket } from 'socket.io-client'
@@ -38,12 +37,14 @@ const EXPECTED_QUESTIONS = 5
 export default function Interview() {
   const location = useLocation()
   const storeSessionId = useSessionStore((s) => s.sessionId)
+
   const sessionId =
     (location.state as { sessionId?: string })?.sessionId || storeSessionId
 
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState('')
   const [isThinking, setIsThinking] = useState(true)
+  const [errorMessage, setErrorMessage] = useState('')
   const [elapsed, setElapsed] = useState(0)
   const [isListening, setIsListening] = useState(false)
   const [voiceSupported, setVoiceSupported] = useState(true)
@@ -52,9 +53,11 @@ export default function Interview() {
   const bottomRef = useRef<HTMLDivElement>(null)
   const socketRef = useRef<Socket | null>(null)
   const recognitionRef = useRef<SpeechRecognitionInstance | null>(null)
+
   const navigate = useNavigate()
 
-  const questionIndex = messages.filter((m) => m.role === 'ai').length - 1
+  const questionIndex =
+    messages.filter((m) => m.role === 'ai').length - 1
 
   const speak = useCallback(
     (text: string) => {
@@ -77,12 +80,21 @@ export default function Interview() {
       return
     }
 
-    const socket = io('https://skillmate-backend-63zd.onrender.com')
+    const socket = io(
+      'https://skillmate-backend-63zd.onrender.com'
+    )
 
     socketRef.current = socket
 
     socket.on('connect', () => {
-      console.log('Connected to SkillMate backend:', socket.id)
+      console.log(
+        'Connected to SkillMate backend:',
+        socket.id
+      )
+
+      setErrorMessage('')
+      setIsThinking(true)
+
       socket.emit('interview:start', { sessionId })
     })
 
@@ -95,13 +107,25 @@ export default function Interview() {
         text: string
         isComplete: boolean
       }) => {
-        setMessages((prev) => [...prev, { role: 'ai', text }])
+        setMessages((prev) => [
+          ...prev,
+          {
+            role: 'ai',
+            text,
+          },
+        ])
+
         setIsThinking(false)
+        setErrorMessage('')
+
         speak(text)
 
         if (isComplete) {
           setTimeout(
-            () => navigate('/feedback', { state: { sessionId } }),
+            () =>
+              navigate('/feedback', {
+                state: { sessionId },
+              }),
             3000
           )
         }
@@ -109,13 +133,28 @@ export default function Interview() {
     )
 
     socket.on('interview:error', (msg: string) => {
-      alert(msg)
+      console.error('Interview error:', msg)
+
       setIsThinking(false)
+
+      setErrorMessage(
+        msg === 'Could not start interview'
+          ? 'Unable to start the interview. Please try again.'
+          : 'AI is temporarily unavailable. Please try again.'
+      )
     })
 
     socket.on('connect_error', (error) => {
-      console.error('Socket.io connection error:', error)
+      console.error(
+        'Socket.io connection error:',
+        error
+      )
+
       setIsThinking(false)
+
+      setErrorMessage(
+        'Unable to connect to the interview server. Please try again.'
+      )
     })
 
     return () => {
@@ -128,7 +167,8 @@ export default function Interview() {
 
   useEffect(() => {
     const SpeechRecognitionAPI =
-      window.SpeechRecognition || window.webkitSpeechRecognition
+      window.SpeechRecognition ||
+      window.webkitSpeechRecognition
 
     if (!SpeechRecognitionAPI) {
       setVoiceSupported(false)
@@ -141,24 +181,38 @@ export default function Interview() {
     recognition.interimResults = true
     recognition.lang = 'en-US'
 
-    recognition.onresult = (event: SpeechRecognitionEvent) => {
+    recognition.onresult = (
+      event: SpeechRecognitionEvent
+    ) => {
       let transcript = ''
 
-      for (let i = 0; i < event.results.length; i++) {
-        transcript += event.results[i][0].transcript
+      for (
+        let i = 0;
+        i < event.results.length;
+        i++
+      ) {
+        transcript +=
+          event.results[i][0].transcript
       }
 
       setInput(transcript)
     }
 
-    recognition.onerror = () => setIsListening(false)
-    recognition.onend = () => setIsListening(false)
+    recognition.onerror = () => {
+      setIsListening(false)
+    }
+
+    recognition.onend = () => {
+      setIsListening(false)
+    }
 
     recognitionRef.current = recognition
   }, [])
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
+    bottomRef.current?.scrollIntoView({
+      behavior: 'smooth',
+    })
   }, [messages, isThinking])
 
   useEffect(() => {
@@ -170,7 +224,9 @@ export default function Interview() {
   }, [])
 
   const formatTime = (s: number) =>
-    `${Math.floor(s / 60)}:${(s % 60).toString().padStart(2, '0')}`
+    `${Math.floor(s / 60)}:${(s % 60)
+      .toString()
+      .padStart(2, '0')}`
 
   const toggleListening = () => {
     if (!recognitionRef.current) return
@@ -187,32 +243,47 @@ export default function Interview() {
   }
 
   const handleSend = () => {
-    if (!input.trim() || !socketRef.current) return
+    if (
+      !input.trim() ||
+      !socketRef.current ||
+      isThinking
+    ) {
+      return
+    }
+
+    setErrorMessage('')
 
     if (isListening) {
       recognitionRef.current?.stop()
       setIsListening(false)
     }
 
+    const answer = input.trim()
+
     setMessages((prev) => [
       ...prev,
       {
         role: 'user',
-        text: input,
+        text: answer,
       },
     ])
 
     socketRef.current.emit('interview:answer', {
       sessionId,
-      answer: input,
+      answer,
     })
 
     setInput('')
     setIsThinking(true)
   }
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
+  const handleKeyDown = (
+    e: React.KeyboardEvent
+  ) => {
+    if (
+      e.key === 'Enter' &&
+      !e.shiftKey
+    ) {
       e.preventDefault()
       handleSend()
     }
@@ -230,12 +301,21 @@ export default function Interview() {
       <div className="relative z-10 max-w-3xl mx-auto px-6 py-8 flex flex-col h-[calc(100vh-9rem)] md:h-[88vh]">
         <div className="mb-4">
           <div className="flex items-center justify-between mb-2">
-            <h1 className="font-display text-2xl">Live mock interview</h1>
+            <h1 className="font-display text-2xl">
+              Live mock interview
+            </h1>
 
             <div className="flex items-center gap-4">
               <button
-                onClick={() => setVoiceOutputEnabled((v) => !v)}
-                style={{ color: 'var(--text-secondary)' }}
+                onClick={() =>
+                  setVoiceOutputEnabled(
+                    (v) => !v
+                  )
+                }
+                style={{
+                  color:
+                    'var(--text-secondary)',
+                }}
               >
                 {voiceOutputEnabled ? (
                   <Volume2 size={18} />
@@ -246,22 +326,30 @@ export default function Interview() {
 
               <div
                 className="flex items-center gap-2 text-sm"
-                style={{ color: 'var(--text-secondary)' }}
+                style={{
+                  color:
+                    'var(--text-secondary)',
+                }}
               >
-                <Clock size={14} /> {formatTime(elapsed)}
+                <Clock size={14} />{' '}
+                {formatTime(elapsed)}
               </div>
             </div>
           </div>
 
           <div
             className="w-full rounded-full h-1.5"
-            style={{ background: 'var(--border)' }}
+            style={{
+              background: 'var(--border)',
+            }}
           >
             <div
               className="bg-gradient-aurora h-1.5 rounded-full transition-all duration-500"
               style={{
                 width: `${Math.min(
-                  ((questionIndex + 1) / EXPECTED_QUESTIONS) * 100,
+                  ((questionIndex + 1) /
+                    EXPECTED_QUESTIONS) *
+                    100,
                   100
                 )}%`,
               }}
@@ -274,7 +362,9 @@ export default function Interview() {
             <div
               key={i}
               className={`flex ${
-                m.role === 'user' ? 'justify-end' : 'justify-start'
+                m.role === 'user'
+                  ? 'justify-end'
+                  : 'justify-start'
               }`}
             >
               {m.role === 'ai' && (
@@ -291,7 +381,10 @@ export default function Interview() {
                 }`}
                 style={
                   m.role !== 'user'
-                    ? { background: 'var(--border)' }
+                    ? {
+                        background:
+                          'var(--border)',
+                      }
                     : {}
                 }
               >
@@ -300,23 +393,45 @@ export default function Interview() {
             </div>
           ))}
 
+          {errorMessage && (
+            <div
+              className="text-center text-sm py-2"
+              style={{
+                color: 'var(--text-secondary)',
+              }}
+            >
+              {errorMessage}
+            </div>
+          )}
+
           {isThinking && (
             <div className="flex items-center gap-2">
               <div
                 className="px-4 py-2.5 rounded-2xl rounded-bl-md flex gap-1"
-                style={{ background: 'var(--border)' }}
+                style={{
+                  background: 'var(--border)',
+                }}
               >
                 <span
                   className="w-1.5 h-1.5 rounded-full animate-bounce [animation-delay:-0.3s]"
-                  style={{ background: 'var(--text-tertiary)' }}
+                  style={{
+                    background:
+                      'var(--text-tertiary)',
+                  }}
                 />
                 <span
                   className="w-1.5 h-1.5 rounded-full animate-bounce [animation-delay:-0.15s]"
-                  style={{ background: 'var(--text-tertiary)' }}
+                  style={{
+                    background:
+                      'var(--text-tertiary)',
+                  }}
                 />
                 <span
                   className="w-1.5 h-1.5 rounded-full animate-bounce"
-                  style={{ background: 'var(--text-tertiary)' }}
+                  style={{
+                    background:
+                      'var(--text-tertiary)',
+                  }}
                 />
               </div>
             </div>
@@ -347,7 +462,9 @@ export default function Interview() {
           <textarea
             rows={2}
             value={input}
-            onChange={(e) => setInput(e.target.value)}
+            onChange={(e) =>
+              setInput(e.target.value)
+            }
             onKeyDown={handleKeyDown}
             placeholder={
               isListening
@@ -357,8 +474,10 @@ export default function Interview() {
             className="flex-1 rounded-lg p-3 text-sm resize-none focus:outline-none focus:ring-2"
             style={{
               background: 'var(--bg-page)',
-              border: '1px solid var(--border)',
-              color: 'var(--text-primary)',
+              border:
+                '1px solid var(--border)',
+              color:
+                'var(--text-primary)',
             }}
           />
 
@@ -373,33 +492,46 @@ export default function Interview() {
             style={
               !isListening
                 ? {
-                    border: '1px solid var(--border)',
-                    color: 'var(--text-secondary)',
+                    border:
+                      '1px solid var(--border)',
+                    color:
+                      'var(--text-secondary)',
                   }
                 : {}
             }
           >
-            {isListening ? <MicOff size={18} /> : <Mic size={18} />}
+            {isListening ? (
+              <MicOff size={18} />
+            ) : (
+              <Mic size={18} />
+            )}
           </button>
 
           <button
             onClick={handleSend}
-            className="bg-gradient-aurora text-white px-6 rounded-lg font-semibold shadow-md hover:shadow-lg transition-shadow"
+            disabled={
+              isThinking ||
+              !input.trim()
+            }
+            className="bg-gradient-aurora text-white px-6 rounded-lg font-semibold shadow-md hover:shadow-lg transition-shadow disabled:opacity-40 disabled:cursor-not-allowed"
           >
-            Send
+            {isThinking ? '...' : 'Send'}
           </button>
         </div>
 
         {!voiceSupported && (
           <p
             className="text-xs mt-2 text-center"
-            style={{ color: 'var(--text-tertiary)' }}
+            style={{
+              color:
+                'var(--text-tertiary)',
+            }}
           >
-            Voice input isn't supported in this browser. Try Chrome or Edge.
+            Voice input isn't supported in this
+            browser. Try Chrome or Edge.
           </p>
         )}
       </div>
     </div>
   )
 }
-
