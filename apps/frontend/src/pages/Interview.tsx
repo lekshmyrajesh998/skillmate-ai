@@ -1,3 +1,4 @@
+
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { io, Socket } from 'socket.io-client'
@@ -61,11 +62,14 @@ export default function Interview() {
 
   const speak = useCallback(
     (text: string) => {
-      if (!voiceOutputEnabled || !('speechSynthesis' in window)) return
+      if (!voiceOutputEnabled || !('speechSynthesis' in window)) {
+        return
+      }
 
       window.speechSynthesis.cancel()
 
       const utterance = new SpeechSynthesisUtterance(text)
+
       utterance.rate = 1
       utterance.pitch = 1
 
@@ -74,18 +78,30 @@ export default function Interview() {
     [voiceOutputEnabled]
   )
 
+  // --------------------------------------------------
+  // SOCKET CONNECTION
+  // --------------------------------------------------
   useEffect(() => {
     if (!sessionId) {
       navigate('/dashboard')
       return
     }
 
+    console.log('Starting interview with session:', sessionId)
+
     const socket = io(
-      'https://skillmate-backend-63zd.onrender.com'
+      'https://skillmate-backend-63zd.onrender.com',
+      {
+        transports: ['websocket', 'polling'],
+        reconnection: true,
+        reconnectionAttempts: 3,
+        timeout: 15000,
+      }
     )
 
     socketRef.current = socket
 
+    // Connected
     socket.on('connect', () => {
       console.log(
         'Connected to SkillMate backend:',
@@ -95,9 +111,17 @@ export default function Interview() {
       setErrorMessage('')
       setIsThinking(true)
 
-      socket.emit('interview:start', { sessionId })
+      console.log(
+        'Sending interview:start:',
+        sessionId
+      )
+
+      socket.emit('interview:start', {
+        sessionId,
+      })
     })
 
+    // Initial / next question
     socket.on(
       'interview:question',
       ({
@@ -107,6 +131,11 @@ export default function Interview() {
         text: string
         isComplete: boolean
       }) => {
+        console.log(
+          'Interview question received:',
+          text
+        )
+
         setMessages((prev) => [
           ...prev,
           {
@@ -121,50 +150,84 @@ export default function Interview() {
         speak(text)
 
         if (isComplete) {
-          setTimeout(
-            () =>
-              navigate('/feedback', {
-                state: { sessionId },
-              }),
-            3000
-          )
+          setTimeout(() => {
+            navigate('/feedback', {
+              state: {
+                sessionId,
+              },
+            })
+          }, 3000)
         }
       }
     )
 
+    // Backend error
     socket.on('interview:error', (msg: string) => {
-      console.error('Interview error:', msg)
+      console.error(
+        'Interview backend error:',
+        msg
+      )
 
       setIsThinking(false)
 
+      // Show the exact backend message.
       setErrorMessage(
-        msg === 'Could not start interview'
-          ? 'Unable to start the interview. Please try again.'
-          : 'AI is temporarily unavailable. Please try again.'
+        msg || 'An unexpected interview error occurred.'
       )
     })
 
+    // Socket connection error
     socket.on('connect_error', (error) => {
       console.error(
         'Socket.io connection error:',
-        error
+        error.message
       )
 
       setIsThinking(false)
 
       setErrorMessage(
-        'Unable to connect to the interview server. Please try again.'
+        `Unable to connect to the interview server: ${error.message}`
+      )
+    })
+
+    // Socket reconnecting
+    socket.io.on('reconnect_attempt', (attempt) => {
+      console.log(
+        'Socket reconnect attempt:',
+        attempt
+      )
+
+      setIsThinking(true)
+    })
+
+    socket.io.on('reconnect_failed', () => {
+      console.error(
+        'Socket reconnection failed'
+      )
+
+      setIsThinking(false)
+
+      setErrorMessage(
+        'Unable to reconnect to the interview server.'
       )
     })
 
     return () => {
+      console.log(
+        'Cleaning up interview socket'
+      )
+
       socket.disconnect()
+
       window.speechSynthesis?.cancel()
     }
 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sessionId, navigate])
 
+  // --------------------------------------------------
+  // SPEECH RECOGNITION
+  // --------------------------------------------------
   useEffect(() => {
     const SpeechRecognitionAPI =
       window.SpeechRecognition ||
@@ -198,7 +261,12 @@ export default function Interview() {
       setInput(transcript)
     }
 
-    recognition.onerror = () => {
+    recognition.onerror = (event) => {
+      console.error(
+        'Speech recognition error:',
+        event
+      )
+
       setIsListening(false)
     }
 
@@ -207,14 +275,25 @@ export default function Interview() {
     }
 
     recognitionRef.current = recognition
+
+    return () => {
+      recognition.stop()
+      recognitionRef.current = null
+    }
   }, [])
 
+  // --------------------------------------------------
+  // AUTO SCROLL
+  // --------------------------------------------------
   useEffect(() => {
     bottomRef.current?.scrollIntoView({
       behavior: 'smooth',
     })
   }, [messages, isThinking])
 
+  // --------------------------------------------------
+  // TIMER
+  // --------------------------------------------------
   useEffect(() => {
     const timer = setInterval(() => {
       setElapsed((t) => t + 1)
@@ -228,37 +307,77 @@ export default function Interview() {
       .toString()
       .padStart(2, '0')}`
 
+  // --------------------------------------------------
+  // VOICE INPUT
+  // --------------------------------------------------
   const toggleListening = () => {
-    if (!recognitionRef.current) return
+    if (!recognitionRef.current) {
+      return
+    }
 
     if (isListening) {
       recognitionRef.current.stop()
       setIsListening(false)
-    } else {
-      window.speechSynthesis?.cancel()
-      setInput('')
-      recognitionRef.current.start()
-      setIsListening(true)
-    }
-  }
-
-  const handleSend = () => {
-    if (
-      !input.trim() ||
-      !socketRef.current ||
-      isThinking
-    ) {
       return
     }
 
+    window.speechSynthesis?.cancel()
+
+    setInput('')
     setErrorMessage('')
+
+    try {
+      recognitionRef.current.start()
+      setIsListening(true)
+    } catch (error) {
+      console.error(
+        'Unable to start speech recognition:',
+        error
+      )
+
+      setIsListening(false)
+    }
+  }
+
+  // --------------------------------------------------
+  // SEND ANSWER
+  // --------------------------------------------------
+  const handleSend = () => {
+    const answer = input.trim()
+
+    if (!answer) {
+      return
+    }
+
+    if (!socketRef.current) {
+      setErrorMessage(
+        'Interview connection is not available.'
+      )
+      return
+    }
+
+    if (isThinking) {
+      return
+    }
+
+    if (!socketRef.current.connected) {
+      setErrorMessage(
+        'Interview connection is unavailable. Please try again.'
+      )
+      return
+    }
 
     if (isListening) {
       recognitionRef.current?.stop()
       setIsListening(false)
     }
 
-    const answer = input.trim()
+    console.log(
+      'Sending interview answer:',
+      answer
+    )
+
+    setErrorMessage('')
 
     setMessages((prev) => [
       ...prev,
@@ -268,15 +387,21 @@ export default function Interview() {
       },
     ])
 
-    socketRef.current.emit('interview:answer', {
-      sessionId,
-      answer,
-    })
-
     setInput('')
     setIsThinking(true)
+
+    socketRef.current.emit(
+      'interview:answer',
+      {
+        sessionId,
+        answer,
+      }
+    )
   }
 
+  // --------------------------------------------------
+  // ENTER KEY
+  // --------------------------------------------------
   const handleKeyDown = (
     e: React.KeyboardEvent
   ) => {
@@ -299,13 +424,17 @@ export default function Interview() {
       }}
     >
       <div className="relative z-10 max-w-3xl mx-auto px-6 py-8 flex flex-col h-[calc(100vh-9rem)] md:h-[88vh]">
+
+        {/* Header */}
         <div className="mb-4">
           <div className="flex items-center justify-between mb-2">
+
             <h1 className="font-display text-2xl">
               Live mock interview
             </h1>
 
             <div className="flex items-center gap-4">
+
               <button
                 onClick={() =>
                   setVoiceOutputEnabled(
@@ -331,9 +460,10 @@ export default function Interview() {
                     'var(--text-secondary)',
                 }}
               >
-                <Clock size={14} />{' '}
+                <Clock size={14} />
                 {formatTime(elapsed)}
               </div>
+
             </div>
           </div>
 
@@ -357,7 +487,9 @@ export default function Interview() {
           </div>
         </div>
 
+        {/* Conversation */}
         <div className="flex-1 overflow-y-auto space-y-4 surface rounded-2xl p-5">
+
           {messages.map((m, i) => (
             <div
               key={i}
@@ -367,6 +499,7 @@ export default function Interview() {
                   : 'justify-start'
               }`}
             >
+
               {m.role === 'ai' && (
                 <div className="w-7 h-7 rounded-full bg-gradient-aurora text-xs flex items-center justify-center mr-2 shrink-0 font-display text-white">
                   S
@@ -393,23 +526,28 @@ export default function Interview() {
             </div>
           ))}
 
+          {/* Error */}
           {errorMessage && (
             <div
               className="text-center text-sm py-2"
               style={{
-                color: 'var(--text-secondary)',
+                color:
+                  'var(--text-secondary)',
               }}
             >
               {errorMessage}
             </div>
           )}
 
+          {/* Thinking indicator */}
           {isThinking && (
             <div className="flex items-center gap-2">
+
               <div
                 className="px-4 py-2.5 rounded-2xl rounded-bl-md flex gap-1"
                 style={{
-                  background: 'var(--border)',
+                  background:
+                    'var(--border)',
                 }}
               >
                 <span
@@ -419,6 +557,7 @@ export default function Interview() {
                       'var(--text-tertiary)',
                   }}
                 />
+
                 <span
                   className="w-1.5 h-1.5 rounded-full animate-bounce [animation-delay:-0.15s]"
                   style={{
@@ -426,6 +565,7 @@ export default function Interview() {
                       'var(--text-tertiary)',
                   }}
                 />
+
                 <span
                   className="w-1.5 h-1.5 rounded-full animate-bounce"
                   style={{
@@ -434,14 +574,17 @@ export default function Interview() {
                   }}
                 />
               </div>
+
             </div>
           )}
 
           <div ref={bottomRef} />
         </div>
 
+        {/* Voice animation */}
         {isListening && (
           <div className="flex items-center justify-center gap-1 mt-3 h-6">
+
             {[...Array(20)].map((_, i) => (
               <span
                 key={i}
@@ -455,10 +598,13 @@ export default function Interview() {
                 }}
               />
             ))}
+
           </div>
         )}
 
+        {/* Input */}
         <div className="flex gap-2 mt-4">
+
           <textarea
             rows={2}
             value={input}
@@ -473,7 +619,8 @@ export default function Interview() {
             }
             className="flex-1 rounded-lg p-3 text-sm resize-none focus:outline-none focus:ring-2"
             style={{
-              background: 'var(--bg-page)',
+              background:
+                'var(--bg-page)',
               border:
                 '1px solid var(--border)',
               color:
@@ -517,6 +664,7 @@ export default function Interview() {
           >
             {isThinking ? '...' : 'Send'}
           </button>
+
         </div>
 
         {!voiceSupported && (
@@ -531,7 +679,9 @@ export default function Interview() {
             browser. Try Chrome or Edge.
           </p>
         )}
+
       </div>
     </div>
   )
 }
+
