@@ -36,6 +36,7 @@ const io = new Server(httpServer, {
     origin: [
       'http://localhost:5173',
       'https://skillmate-ai-zeta.vercel.app',
+      'https://skillmate-dcnuk2rbr-lekshmyrajesh998.vercel.app',
     ],
     methods: ['GET', 'POST'],
     credentials: true,
@@ -156,3 +157,4 @@ const PORT = process.env.PORT || 4000
 httpServer.listen(PORT, () => {
   console.log(`SkillMate backend running on port ${PORT}`)
 })
+
