@@ -62,7 +62,7 @@ This will be question number ${questionCount + 1}. If this is question 5 or late
       result = await model.generateContent(prompt)
     } catch (retryErr: any) {
       console.error('Gemini API retry also failed:', retryErr.message || retryErr)
-      throw new Error('AI service temporarily unavailable — please try again')
+throw new Error('High demand right now — please wait a moment and try again')
     }
   }
 
