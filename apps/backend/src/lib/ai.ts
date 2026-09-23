@@ -11,16 +11,8 @@ const primaryModel = genAI.getGenerativeModel({
   model: 'gemini-3.8-flash',
 })
 
-const fallbackModel1 = genAI.getGenerativeModel({
-  model: 'gemini-3.7-flash',
-})
-
-const fallbackModel2 = genAI.getGenerativeModel({
-  model: 'gemini-3.6-flash',
-})
-
-const fallbackModel3 = genAI.getGenerativeModel({
-  model: 'gemini-3.5-flash',
+const fallbackModel = genAI.getGenerativeModel({
+  model: 'gemini-3.5-flash-lite',
 })
 
 interface AIResponse {
@@ -28,29 +20,46 @@ interface AIResponse {
   isComplete: boolean
 }
 
-async function generateWithFallback(
+const delay = (ms: number) =>
+  new Promise((resolve) => setTimeout(resolve, ms))
+
+async function generateWithRetry(
   model: ReturnType<GoogleGenerativeAI['getGenerativeModel']>,
   prompt: string,
   modelName: string
 ) {
-  try {
-    const result = await model.generateContent(prompt)
+  const maxAttempts = 3
 
-    console.log(
-      `Gemini response generated successfully using ${modelName}`
-    )
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      const result = await model.generateContent(prompt)
 
-    return result
-  } catch (err: any) {
-    const message = err?.message || String(err)
+      console.log(
+        `Gemini response generated successfully using ${modelName}`
+      )
 
-    console.error(
-      `Gemini ${modelName} failed:`,
-      message
-    )
+      return result
+    } catch (err: any) {
+      const message = err?.message || String(err)
 
-    return null
+      console.error(
+        `Gemini ${modelName} attempt ${attempt} failed:`,
+        message
+      )
+
+      if (attempt < maxAttempts) {
+        const waitTime = 1000 * Math.pow(2, attempt - 1)
+
+        console.log(
+          `Retrying ${modelName} in ${waitTime}ms...`
+        )
+
+        await delay(waitTime)
+      }
+    }
   }
+
+  return null
 }
 
 export async function generateNextQuestion(
@@ -95,15 +104,27 @@ export async function generateNextQuestion(
       'Focus on campaign strategy, brand thinking, growth metrics, and creative-to-data balance.',
   }
 
-  const systemPrompt = `You are conducting a live mock job interview. The candidate's resume: "${resumeText}". The job they're targeting: "${jobDescription}".
+  const systemPrompt = `You are conducting a live job interview.
+
+Candidate resume:
+${resumeText}
+
+Target job:
+${jobDescription}
 
 ${difficultyGuidance[difficulty] || difficultyGuidance.mid}
 
 ${roleGuidance[roleType] || roleGuidance.sde}
 
-Ask one focused interview question at a time, grounded in their actual experience and the target role. If this is a follow-up, react briefly to their last answer, then ask the next question. Keep questions concise — 1-2 sentences.
+Ask one focused interview question at a time, grounded in the candidate's actual experience and target role.
 
-This will be question number ${questionCount + 1}. If this is question 5 or later, instead of asking a new question, wrap up warmly and end your message with exactly this marker on its own line:
+If this is a follow-up, briefly react to the candidate's previous answer and then ask the next question.
+
+Keep the response concise — 1-2 sentences.
+
+This is question number ${questionCount + 1}.
+
+If this is question 5 or later, wrap up the interview warmly and end your response with exactly:
 
 [INTERVIEW_COMPLETE]`
 
@@ -121,58 +142,41 @@ This will be question number ${questionCount + 1}. If this is question 5 or late
 Conversation so far:
 ${historyText}
 
-Respond with your next message now.`
+Respond with your next interview message now.`
       : `${systemPrompt}
 
-Begin the interview now with your first question.`
+Begin the interview now with the first question.`
 
-  // Try Gemini 3.8 Flash first
-  let result = await generateWithFallback(
+  // -----------------------------------------
+  // 1. Try Gemini 3.8 Flash
+  // -----------------------------------------
+
+  let result = await generateWithRetry(
     primaryModel,
     prompt,
     'gemini-3.8-flash'
   )
 
-  // Try Gemini 3.7 Flash if 3.8 fails
+  // -----------------------------------------
+  // 2. Try Gemini 3.5 Flash-Lite
+  // -----------------------------------------
+
   if (!result) {
     console.warn(
-      'Gemini 3.8 unavailable. Trying Gemini 3.7...'
+      'Gemini 3.8 unavailable. Trying Gemini 3.5 Flash-Lite...'
     )
 
-    result = await generateWithFallback(
-      fallbackModel1,
+    result = await generateWithRetry(
+      fallbackModel,
       prompt,
-      'gemini-3.7-flash'
+      'gemini-3.5-flash-lite'
     )
   }
 
-  // Try Gemini 3.6 Flash if 3.7 fails
-  if (!result) {
-    console.warn(
-      'Gemini 3.7 unavailable. Trying Gemini 3.6...'
-    )
+  // -----------------------------------------
+  // 3. If Gemini is temporarily unavailable
+  // -----------------------------------------
 
-    result = await generateWithFallback(
-      fallbackModel2,
-      prompt,
-      'gemini-3.6-flash'
-    )
-  }
-
-  // Try Gemini 3.5 Flash if 3.6 fails
-  if (!result) {
-    console.warn(
-      'Gemini 3.6 unavailable. Trying Gemini 3.5...'
-    )
-
-    result = await generateWithFallback(
-      fallbackModel3,
-      prompt,
-      'gemini-3.5-flash'
-    )
-  }
-
-  // If all models fail
   if (!result) {
     throw new Error(
       'AI service is temporarily unavailable. Please try again in a moment.'
