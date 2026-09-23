@@ -3,7 +3,9 @@ dotenv.config()
 
 import { GoogleGenerativeAI } from '@google/generative-ai'
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '')
+const genAI = new GoogleGenerativeAI(
+  process.env.GEMINI_API_KEY || ''
+)
 
 const primaryModel = genAI.getGenerativeModel({
   model: 'gemini-3.6-flash',
@@ -18,39 +20,29 @@ interface AIResponse {
   isComplete: boolean
 }
 
-const delay = (ms: number) =>
-  new Promise((resolve) => setTimeout(resolve, ms))
-
-async function generateWithRetry(
+async function generateWithFallback(
   model: ReturnType<GoogleGenerativeAI['getGenerativeModel']>,
   prompt: string,
   modelName: string
 ) {
-  // One quick retry only to keep the interview responsive
-  for (let attempt = 0; attempt < 2; attempt++) {
-    try {
-      const result = await model.generateContent(prompt)
+  try {
+    const result = await model.generateContent(prompt)
 
-      console.log(
-        `Gemini response generated successfully using ${modelName}`
-      )
+    console.log(
+      `Gemini response generated successfully using ${modelName}`
+    )
 
-      return result
-    } catch (err: any) {
-      const message = err?.message || String(err)
+    return result
+  } catch (err: any) {
+    const message = err?.message || String(err)
 
-      console.error(
-        `Gemini ${modelName} attempt ${attempt + 1} failed:`,
-        message
-      )
+    console.error(
+      `Gemini ${modelName} failed:`,
+      message
+    )
 
-      if (attempt === 0) {
-        await delay(1500)
-      }
-    }
+    return null
   }
-
-  return null
 }
 
 export async function generateNextQuestion(
@@ -70,8 +62,10 @@ export async function generateNextQuestion(
   const difficultyGuidance: Record<string, string> = {
     junior:
       'Ask foundational questions suitable for someone with 0-2 years experience. Keep questions approachable and encouraging.',
+
     mid:
       'Ask questions expecting solid hands-on experience (2-5 years). Probe for real trade-offs and decisions they made.',
+
     senior:
       'Ask challenging questions expecting deep expertise (5+ years) — system design thinking, leadership, and complex trade-offs.',
   }
@@ -79,12 +73,16 @@ export async function generateNextQuestion(
   const roleGuidance: Record<string, string> = {
     sde:
       'Focus on technical implementation, architecture decisions, and engineering trade-offs.',
+
     pm:
       'Focus on product strategy, prioritization, stakeholder management, and metrics-driven thinking.',
+
     data:
       'Focus on data pipelines, analysis rigor, experiment design, and translating data into decisions.',
+
     sales:
       'Focus on relationship building, negotiation, quota achievement, and objection handling.',
+
     marketing:
       'Focus on campaign strategy, brand thinking, growth metrics, and creative-to-data balance.',
   }
@@ -117,24 +115,27 @@ Respond with your next message now.`
 
 Begin the interview now with your first question.`
 
-  let result = await generateWithRetry(
+  // Try the primary Gemini model first
+  let result = await generateWithFallback(
     primaryModel,
     prompt,
     'gemini-3.6-flash'
   )
 
+  // If the primary model fails, immediately try the fallback model
   if (!result) {
     console.warn(
       'Primary Gemini model unavailable. Trying fallback model...'
     )
 
-    result = await generateWithRetry(
+    result = await generateWithFallback(
       fallbackModel,
       prompt,
       'gemini-3.5-flash'
     )
   }
 
+  // If both models fail, return an error
   if (!result) {
     throw new Error(
       'AI service is temporarily unavailable. Please try again in a moment.'
@@ -143,7 +144,9 @@ Begin the interview now with your first question.`
 
   const rawText = result.response.text()
 
-  const isComplete = rawText.includes('[INTERVIEW_COMPLETE]')
+  const isComplete = rawText.includes(
+    '[INTERVIEW_COMPLETE]'
+  )
 
   const cleanText = rawText
     .replace('[INTERVIEW_COMPLETE]', '')
