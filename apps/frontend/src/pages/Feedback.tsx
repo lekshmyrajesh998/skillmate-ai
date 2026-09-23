@@ -1,142 +1,781 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
-import { Download, CheckCircle2, AlertTriangle, Loader2 } from 'lucide-react'
+import {
+  ArrowLeft,
+  ArrowUpRight,
+  AlertTriangle,
+  CheckCircle2,
+  Download,
+  FileText,
+  Loader2,
+  Sparkles,
+  Target,
+  TrendingUp,
+} from 'lucide-react'
 import jsPDF from 'jspdf'
+
 import { api } from '../lib/api'
 import { useSessionStore } from '../store/sessionStore'
 import { Skeleton } from '../components/Skeleton'
 
-interface FeedbackData { overallScore: number; clarityScore: number; relevanceScore: number; depthScore: number; confidenceScore: number; summary: string }
+interface FeedbackData {
+  overallScore: number
+  clarityScore: number
+  relevanceScore: number
+  depthScore: number
+  confidenceScore: number
+  summary: string
+}
 
 function scoreColor(score: number) {
   if (score >= 80) return '#06B6D4'
   if (score >= 60) return '#F5B942'
   return '#F5605C'
 }
+
 function ringDashArray(score: number, radius: number) {
-  const c = 2 * Math.PI * radius
-  return `${(score / 100) * c} ${c}`
+  const circumference = 2 * Math.PI * radius
+  return `${(score / 100) * circumference} ${circumference}`
+}
+
+function getScoreLabel(score: number) {
+  if (score >= 80) return 'Strong performance'
+  if (score >= 60) return 'Solid performance'
+  return 'Keep practicing'
+}
+
+function getScoreDescription(score: number) {
+  if (score >= 80) {
+    return 'You demonstrated strong interview readiness across the evaluated areas.'
+  }
+
+  if (score >= 60) {
+    return 'You have a solid foundation. Focus on the highlighted areas to improve consistency.'
+  }
+
+  return 'There is a good opportunity to strengthen your interview fundamentals and answer structure.'
 }
 
 export default function Feedback() {
   const navigate = useNavigate()
   const location = useLocation()
+
   const storeSessionId = useSessionStore((s) => s.sessionId)
-  const sessionId = (location.state as { sessionId?: string })?.sessionId || storeSessionId
+
+  const sessionId =
+    (location.state as { sessionId?: string })?.sessionId || storeSessionId
 
   const [data, setData] = useState<FeedbackData | null>(null)
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(false)
 
   useEffect(() => {
-    if (!sessionId) { navigate('/dashboard'); return }
-    api.get(`/feedback/${sessionId}`).then((res) => setData(res.data)).catch(() => alert('Could not load feedback')).finally(() => setLoading(false))
+    if (!sessionId) {
+      navigate('/dashboard')
+      return
+    }
+
+    setLoading(true)
+    setError(false)
+
+    api
+      .get(`/feedback/${sessionId}`)
+      .then((res) => setData(res.data))
+      .catch(() => setError(true))
+      .finally(() => setLoading(false))
   }, [sessionId, navigate])
 
-  if (loading || !data) {
+  const handleDownload = () => {
+    if (!data) return
+
+    const doc = new jsPDF()
+    const pageWidth = doc.internal.pageSize.getWidth()
+
+    let y = 20
+
+    doc.setFontSize(20)
+    doc.setTextColor(30, 30, 40)
+    doc.text('SkillMate AI — Interview Report', 15, y)
+
+    y += 12
+
+    doc.setFontSize(11)
+    doc.setTextColor(100, 100, 110)
+    doc.text(`Generated ${new Date().toLocaleDateString()}`, 15, y)
+
+    y += 15
+
+    doc.setFillColor(139, 92, 246)
+    doc.circle(30, y + 10, 15, 'F')
+
+    doc.setTextColor(255, 255, 255)
+    doc.setFontSize(16)
+    doc.text(String(data.overallScore), 30, y + 14, {
+      align: 'center',
+    })
+
+    doc.setTextColor(30, 30, 40)
+    doc.setFontSize(13)
+    doc.text('Overall Score', 55, y + 8)
+
+    doc.setFontSize(10)
+    doc.setTextColor(100, 100, 110)
+
+    const summaryLines = doc.splitTextToSize(
+      data.summary,
+      pageWidth - 70
+    )
+
+    doc.text(summaryLines, 55, y + 15)
+
+    y += 40
+
+    doc.setDrawColor(220, 220, 225)
+    doc.line(15, y, pageWidth - 15, y)
+
+    y += 12
+
+    doc.setFontSize(14)
+    doc.setTextColor(30, 30, 40)
+    doc.text('Score Breakdown', 15, y)
+
+    y += 10
+
+    const scores = [
+      { label: 'Clarity', score: data.clarityScore },
+      { label: 'Relevance to role', score: data.relevanceScore },
+      { label: 'Depth of detail', score: data.depthScore },
+      { label: 'Confidence signals', score: data.confidenceScore },
+    ]
+
+    scores.forEach((item) => {
+      doc.setFontSize(11)
+      doc.setTextColor(60, 60, 70)
+
+      doc.text(item.label, 15, y)
+
+      doc.text(
+        `${item.score}/100`,
+        pageWidth - 15,
+        y,
+        { align: 'right' }
+      )
+
+      y += 4
+
+      doc.setFillColor(230, 230, 235)
+
+      doc.roundedRect(
+        15,
+        y,
+        pageWidth - 30,
+        3,
+        1.5,
+        1.5,
+        'F'
+      )
+
+      const color =
+        item.score >= 80
+          ? [6, 182, 212]
+          : item.score >= 60
+            ? [245, 185, 66]
+            : [245, 96, 92]
+
+      doc.setFillColor(color[0], color[1], color[2])
+
+      doc.roundedRect(
+        15,
+        y,
+        ((pageWidth - 30) * item.score) / 100,
+        3,
+        1.5,
+        1.5,
+        'F'
+      )
+
+      y += 12
+    })
+
+    doc.setFontSize(9)
+    doc.setTextColor(150, 150, 160)
+    doc.text('Generated by SkillMate AI', 15, 285)
+
+    doc.save('skillmate-interview-report.pdf')
+  }
+
+  if (loading) {
     return (
-      <div className="min-h-screen relative overflow-hidden md:pl-56 pt-16 pb-20 md:pt-0 md:pb-0" style={{ background: 'linear-gradient(180deg, var(--bg-page) 0%, var(--bg-page-2) 100%)', color: 'var(--text-primary)' }}>
-        <div className="relative z-10 max-w-3xl mx-auto px-6 py-16">
-          <div className="flex items-center gap-2 text-sm mb-8 justify-center" style={{ color: 'var(--text-secondary)' }}>
-            <Loader2 className="animate-spin" size={16} style={{ color: 'var(--accent-2)' }} /> Generating your feedback report…
+      <div
+        className="min-h-screen w-full overflow-hidden pt-16 pb-20 md:pt-0 md:pb-0"
+        style={{
+          background:
+            'linear-gradient(180deg, var(--bg-page) 0%, var(--bg-page-2) 100%)',
+          color: 'var(--text-primary)',
+        }}
+      >
+        <main className="mx-auto max-w-5xl px-4 py-10 sm:px-6 md:py-12 lg:px-8">
+          <div className="mb-10">
+            <Skeleton className="mb-3 h-4 w-28" />
+            <Skeleton className="h-10 w-72" />
           </div>
-          <div className="flex flex-col items-center mb-8"><Skeleton className="w-[190px] h-[190px] rounded-full" /></div>
-          <div className="grid md:grid-cols-2 gap-4 mb-8"><Skeleton className="h-24" /><Skeleton className="h-24" /></div>
-          <Skeleton className="h-64" />
-        </div>
+
+          <div className="surface rounded-3xl p-8">
+            <div className="flex flex-col items-center">
+              <Skeleton className="h-[190px] w-[190px] rounded-full" />
+              <Skeleton className="mt-6 h-7 w-48" />
+              <Skeleton className="mt-3 h-4 w-full max-w-md" />
+              <Skeleton className="mt-2 h-4 w-80 max-w-full" />
+            </div>
+          </div>
+
+          <div className="mt-6 grid gap-4 md:grid-cols-2">
+            <Skeleton className="h-36 rounded-2xl" />
+            <Skeleton className="h-36 rounded-2xl" />
+          </div>
+
+          <Skeleton className="mt-6 h-72 rounded-2xl" />
+        </main>
+      </div>
+    )
+  }
+
+  if (error || !data) {
+    return (
+      <div
+        className="min-h-screen w-full overflow-hidden pt-16 pb-20 md:pt-0 md:pb-0"
+        style={{
+          background:
+            'linear-gradient(180deg, var(--bg-page) 0%, var(--bg-page-2) 100%)',
+          color: 'var(--text-primary)',
+        }}
+      >
+        <main className="mx-auto flex min-h-screen max-w-3xl items-center justify-center px-6">
+          <div className="surface w-full rounded-3xl p-8 text-center">
+            <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-rose-500/10 text-rose-500">
+              <AlertTriangle size={22} />
+            </div>
+
+            <h1 className="font-display text-2xl">
+              Feedback unavailable
+            </h1>
+
+            <p
+              className="mx-auto mt-2 max-w-md text-sm"
+              style={{ color: 'var(--text-secondary)' }}
+            >
+              We couldn't load the interview feedback for this session.
+            </p>
+
+            <button
+              onClick={() => navigate('/dashboard')}
+              className="mt-6 rounded-xl bg-gradient-aurora px-5 py-3 text-sm font-semibold text-white shadow-md"
+            >
+              Back to dashboard
+            </button>
+          </div>
+        </main>
       </div>
     )
   }
 
   const radius = 80
-  const scores = [
-    { label: 'Clarity', score: data.clarityScore },
-    { label: 'Relevance to role', score: data.relevanceScore },
-    { label: 'Depth of detail', score: data.depthScore },
-    { label: 'Confidence signals', score: data.confidenceScore },
-  ]
-  const strengths = scores.filter((s) => s.score >= 80)
-  const improvements = scores.filter((s) => s.score < 80)
 
-  const handleDownload = () => {
-    const doc = new jsPDF()
-    const pageWidth = doc.internal.pageSize.getWidth()
-    let y = 20
-    doc.setFontSize(20); doc.setTextColor(30, 30, 40); doc.text('SkillMate AI — Interview Report', 15, y); y += 12
-    doc.setFontSize(11); doc.setTextColor(100, 100, 110); doc.text(`Generated ${new Date().toLocaleDateString()}`, 15, y); y += 15
-    doc.setFillColor(139, 92, 246); doc.circle(30, y + 10, 15, 'F')
-    doc.setTextColor(255, 255, 255); doc.setFontSize(16); doc.text(String(data.overallScore), 30, y + 14, { align: 'center' })
-    doc.setTextColor(30, 30, 40); doc.setFontSize(13); doc.text('Overall Score', 55, y + 8)
-    doc.setFontSize(10); doc.setTextColor(100, 100, 110)
-    const summaryLines = doc.splitTextToSize(data.summary, pageWidth - 70)
-    doc.text(summaryLines, 55, y + 15); y += 40
-    doc.setDrawColor(220, 220, 225); doc.line(15, y, pageWidth - 15, y); y += 12
-    doc.setFontSize(14); doc.setTextColor(30, 30, 40); doc.text('Score Breakdown', 15, y); y += 10
-    scores.forEach((item) => {
-      doc.setFontSize(11); doc.setTextColor(60, 60, 70)
-      doc.text(item.label, 15, y); doc.text(`${item.score}/100`, pageWidth - 15, y, { align: 'right' })
-      y += 4
-      doc.setFillColor(230, 230, 235); doc.roundedRect(15, y, pageWidth - 30, 3, 1.5, 1.5, 'F')
-      const c = item.score >= 80 ? [6, 182, 212] : item.score >= 60 ? [245, 185, 66] : [245, 96, 92]
-      doc.setFillColor(c[0], c[1], c[2]); doc.roundedRect(15, y, ((pageWidth - 30) * item.score) / 100, 3, 1.5, 1.5, 'F')
-      y += 12
-    })
-    doc.setFontSize(9); doc.setTextColor(150, 150, 160); doc.text('Generated by SkillMate AI', 15, 285)
-    doc.save('skillmate-interview-report.pdf')
-  }
+  const scores = [
+    {
+      label: 'Clarity',
+      score: data.clarityScore,
+      icon: FileText,
+      description: 'How clearly your answers were communicated.',
+    },
+    {
+      label: 'Relevance',
+      score: data.relevanceScore,
+      icon: Target,
+      description: 'How closely your answers matched the role.',
+    },
+    {
+      label: 'Depth',
+      score: data.depthScore,
+      icon: TrendingUp,
+      description: 'How much useful detail and examples you provided.',
+    },
+    {
+      label: 'Confidence',
+      score: data.confidenceScore,
+      icon: Sparkles,
+      description: 'Confidence signals based on specificity and response quality.',
+    },
+  ]
+
+  const strengths = scores.filter((item) => item.score >= 80)
+  const improvements = scores.filter((item) => item.score < 80)
 
   return (
-    <div className="min-h-screen relative overflow-hidden md:pl-56 pt-16 pb-20 md:pt-0 md:pb-0" style={{ background: 'linear-gradient(180deg, var(--bg-page) 0%, var(--bg-page-2) 100%)', color: 'var(--text-primary)' }}>
-      <div className="relative z-10 max-w-3xl mx-auto px-6 py-16">
-        <div className="flex items-start justify-between mb-12">
+    <div
+      className="min-h-screen w-full overflow-hidden pt-16 pb-20 md:pt-0 md:pb-0"
+      style={{
+        background:
+          'linear-gradient(180deg, var(--bg-page) 0%, var(--bg-page-2) 100%)',
+        color: 'var(--text-primary)',
+      }}
+    >
+      <main className="relative mx-auto max-w-5xl px-4 py-8 sm:px-6 md:py-10 lg:px-8">
+
+        {/* Header */}
+        <div className="mb-8 flex items-start justify-between gap-4">
           <div>
-            <p className="text-sm font-semibold mb-2 text-gradient inline-block">Session complete</p>
-            <h1 className="font-display text-4xl">Your interview report</h1>
+            <button
+              onClick={() => navigate('/dashboard')}
+              className="mb-4 flex items-center gap-2 text-xs font-medium transition-colors"
+              style={{ color: 'var(--text-tertiary)' }}
+            >
+              <ArrowLeft size={14} />
+              Dashboard
+            </button>
+
+            <div className="flex items-center gap-2">
+              <span
+                className="rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider"
+                style={{
+                  color: 'var(--accent-2)',
+                  background:
+                    'color-mix(in srgb, var(--accent-2) 10%, transparent)',
+                }}
+              >
+                Session complete
+              </span>
+            </div>
+
+            <h1 className="font-display mt-3 text-3xl font-bold sm:text-4xl">
+              Your interview report
+            </h1>
+
+            <p
+              className="mt-2 text-sm"
+              style={{ color: 'var(--text-secondary)' }}
+            >
+              A breakdown of your performance and areas to focus on.
+            </p>
           </div>
-          <button onClick={handleDownload} className="flex items-center gap-2 text-sm rounded-lg px-3 py-2 transition-colors shrink-0" style={{ border: '1px solid var(--border)' }}>
-            <Download size={14} /> Download
+
+          <button
+            onClick={handleDownload}
+            className="flex shrink-0 items-center gap-2 rounded-xl border px-3.5 py-2.5 text-sm font-medium transition-all hover:-translate-y-0.5"
+            style={{
+              borderColor: 'var(--border)',
+              background: 'var(--bg-surface)',
+            }}
+          >
+            <Download size={15} />
+            <span className="hidden sm:inline">Download report</span>
           </button>
         </div>
 
-        <div className="flex flex-col items-center text-center mb-8">
-          <svg width="190" height="190" viewBox="0 0 190 190">
-            <circle cx="95" cy="95" r={radius} fill="none" stroke="var(--border)" strokeWidth="12" />
-            <circle cx="95" cy="95" r={radius} fill="none" stroke={scoreColor(data.overallScore)} strokeWidth="12" strokeLinecap="round"
-              strokeDasharray={ringDashArray(data.overallScore, radius)} transform="rotate(-90 95 95)" />
-            <text x="95" y="106" textAnchor="middle" className="font-display" fontSize="48" fill="var(--text-primary)">{data.overallScore}</text>
-          </svg>
-          <p className="font-display text-2xl mt-4">{data.overallScore >= 80 ? 'Strong performance' : data.overallScore >= 60 ? 'Solid, with room to grow' : 'Needs more practice'}</p>
-          <p className="text-sm mt-3 max-w-md" style={{ color: 'var(--text-secondary)' }}>{data.summary}</p>
-        </div>
+        {/* Overall score */}
+        {/* Overall score */}
+<section className="surface relative overflow-hidden rounded-3xl p-6 sm:p-10">
+  {/* Ambient glow */}
+  <div
+    className="pointer-events-none absolute -left-24 -top-24 h-64 w-64 rounded-full blur-3xl"
+    style={{
+      background:
+        'color-mix(in srgb, var(--accent-1) 10%, transparent)',
+    }}
+  />
 
-        <div className="grid md:grid-cols-2 gap-4 mb-12">
-          <div className="surface rounded-2xl p-5">
-            <div className="flex items-center gap-2 text-sm font-semibold mb-3" style={{ color: 'var(--accent-3)' }}><CheckCircle2 size={16} /> Strengths</div>
-            {strengths.length === 0 ? <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>None scored above 80 this round.</p> : strengths.map((s) => <p key={s.label} className="text-sm mb-1.5">{s.label}</p>)}
-          </div>
-          <div className="surface rounded-2xl p-5">
-            <div className="flex items-center gap-2 text-sm font-semibold mb-3 text-[#F5B942]"><AlertTriangle size={16} /> Areas to improve</div>
-            {improvements.map((s) => <p key={s.label} className="text-sm mb-1.5">{s.label}</p>)}
-          </div>
-        </div>
+  <div
+    className="pointer-events-none absolute -bottom-24 -right-24 h-64 w-64 rounded-full blur-3xl"
+    style={{
+      background:
+        'color-mix(in srgb, var(--accent-3) 8%, transparent)',
+    }}
+  />
 
-        <div className="surface rounded-2xl p-8 space-y-6 mb-8">
-          {scores.map((item) => (
-            <div key={item.label}>
-              <div className="flex justify-between items-baseline mb-1.5">
-                <span className="font-medium">{item.label}</span>
-                <span className="text-sm" style={{ color: 'var(--text-secondary)' }}>{item.score}/100</span>
-              </div>
-              <div className="w-full rounded-full h-2" style={{ background: 'var(--border)' }}>
-                <div className="h-2 rounded-full transition-all duration-700" style={{ width: `${item.score}%`, backgroundColor: scoreColor(item.score) }} />
-              </div>
-            </div>
-          ))}
-        </div>
-
-        <button onClick={() => navigate('/dashboard')} className="w-full bg-gradient-aurora text-white rounded-lg py-3.5 font-semibold shadow-md">
-          Start another interview
-        </button>
+  <div className="relative">
+    <div className="mb-6 flex items-center justify-center gap-2">
+      <div
+        className="flex h-7 w-7 items-center justify-center rounded-lg"
+        style={{
+          background:
+            'color-mix(in srgb, var(--accent-2) 10%, transparent)',
+          color: 'var(--accent-2)',
+        }}
+      >
+        <Sparkles size={14} />
       </div>
+
+      <span
+        className="text-[11px] font-semibold uppercase tracking-[0.16em]"
+        style={{ color: 'var(--text-tertiary)' }}
+      >
+        Overall performance
+      </span>
+    </div>
+
+    <div className="flex flex-col items-center text-center">
+      {/* Score ring */}
+      <div
+        className="relative rounded-full p-2"
+        style={{
+          background:
+            'color-mix(in srgb, var(--bg-surface) 70%, transparent)',
+          boxShadow:
+            '0 0 45px color-mix(in srgb, var(--accent-1) 12%, transparent)',
+        }}
+      >
+        <svg
+          width="190"
+          height="190"
+          viewBox="0 0 190 190"
+          aria-label={`Overall score ${data.overallScore} out of 100`}
+        >
+          <circle
+            cx="95"
+            cy="95"
+            r={radius}
+            fill="none"
+            stroke="var(--border)"
+            strokeWidth="12"
+          />
+
+          <circle
+            cx="95"
+            cy="95"
+            r={radius}
+            fill="none"
+            stroke={scoreColor(data.overallScore)}
+            strokeWidth="12"
+            strokeLinecap="round"
+            strokeDasharray={ringDashArray(
+              data.overallScore,
+              radius
+            )}
+            transform="rotate(-90 95 95)"
+          />
+
+          <text
+            x="95"
+            y="102"
+            textAnchor="middle"
+            className="font-display"
+            fontSize="46"
+            fontWeight="700"
+            fill="var(--text-primary)"
+          >
+            {data.overallScore}
+          </text>
+
+          <text
+            x="95"
+            y="124"
+            textAnchor="middle"
+            fontSize="11"
+            fill="var(--text-tertiary)"
+          >
+            / 100
+          </text>
+        </svg>
+      </div>
+
+      {/* Performance label */}
+      <div
+        className="mt-5 inline-flex items-center gap-2 rounded-full px-3.5 py-1.5 text-xs font-semibold"
+        style={{
+          color: scoreColor(data.overallScore),
+          background: `color-mix(in srgb, ${scoreColor(
+            data.overallScore
+          )} 10%, transparent)`,
+          border: `1px solid color-mix(in srgb, ${scoreColor(
+            data.overallScore
+          )} 18%, transparent)`,
+        }}
+      >
+        <Sparkles size={13} />
+        {getScoreLabel(data.overallScore)}
+      </div>
+
+      {/* Summary */}
+      <p
+        className="mt-5 max-w-2xl text-sm leading-6"
+        style={{ color: 'var(--text-secondary)' }}
+      >
+        {data.summary}
+      </p>
+
+      <p
+        className="mt-2 max-w-xl text-xs leading-5"
+        style={{ color: 'var(--text-tertiary)' }}
+      >
+        {getScoreDescription(data.overallScore)}
+      </p>
+    </div>
+  </div>
+</section>
+
+        {/* Strengths / improvements */}
+        <div className="mt-6 grid gap-4 md:grid-cols-2">
+
+          <section className="surface rounded-2xl p-5">
+            <div className="mb-5 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-cyan-500/10 text-cyan-500">
+                  <CheckCircle2 size={18} />
+                </div>
+
+                <div>
+                  <h2 className="text-sm font-bold">Your strengths</h2>
+                  <p
+                    className="text-[11px]"
+                    style={{ color: 'var(--text-tertiary)' }}
+                  >
+                    Areas where you performed strongly
+                  </p>
+                </div>
+              </div>
+
+              <span
+                className="rounded-full px-2 py-1 text-[10px] font-bold"
+                style={{
+                  color: 'var(--accent-3)',
+                  background:
+                    'color-mix(in srgb, var(--accent-3) 10%, transparent)',
+                }}
+              >
+                {strengths.length}
+              </span>
+            </div>
+
+            {strengths.length === 0 ? (
+              <p
+                className="rounded-xl border border-dashed p-4 text-sm"
+                style={{
+                  color: 'var(--text-secondary)',
+                  borderColor: 'var(--border)',
+                }}
+              >
+                No area scored above 80 this round. Review the breakdown below
+                to identify your next focus areas.
+              </p>
+            ) : (
+              <div className="space-y-2">
+                {strengths.map((item) => {
+                  const Icon = item.icon
+
+                  return (
+                    <div
+                      key={item.label}
+                      className="flex items-center gap-3 rounded-xl p-3"
+                      style={{
+                        background:
+                          'color-mix(in srgb, var(--accent-3) 6%, transparent)',
+                      }}
+                    >
+                      <Icon
+                        size={16}
+                        style={{ color: 'var(--accent-3)' }}
+                      />
+
+                      <span className="flex-1 text-sm font-medium">
+                        {item.label}
+                      </span>
+
+                      <span
+                        className="text-xs font-bold"
+                        style={{ color: 'var(--accent-3)' }}
+                      >
+                        {item.score}
+                      </span>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+          </section>
+
+          <section className="surface rounded-2xl p-5">
+            <div className="mb-5 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-amber-500/10 text-amber-500">
+                  <AlertTriangle size={18} />
+                </div>
+
+                <div>
+                  <h2 className="text-sm font-bold">Focus areas</h2>
+                  <p
+                    className="text-[11px]"
+                    style={{ color: 'var(--text-tertiary)' }}
+                  >
+                    Areas to improve next
+                  </p>
+                </div>
+              </div>
+
+              <span className="rounded-full bg-amber-500/10 px-2 py-1 text-[10px] font-bold text-amber-500">
+                {improvements.length}
+              </span>
+            </div>
+
+            <div className="space-y-2">
+              {improvements.map((item) => {
+                const Icon = item.icon
+
+                return (
+                  <div
+                    key={item.label}
+                    className="flex items-center gap-3 rounded-xl bg-amber-500/5 p-3"
+                  >
+                    <Icon size={16} className="text-amber-500" />
+
+                    <span className="flex-1 text-sm font-medium">
+                      {item.label}
+                    </span>
+
+                    <span className="text-xs font-bold text-amber-500">
+                      {item.score}
+                    </span>
+                  </div>
+                )
+              })}
+            </div>
+          </section>
+        </div>
+
+        {/* Score breakdown */}
+        <section className="surface mt-6 rounded-2xl p-5 sm:p-7">
+          <div className="mb-7 flex items-center justify-between">
+            <div>
+              <h2 className="font-display text-lg font-bold">
+                Performance breakdown
+              </h2>
+
+              <p
+                className="mt-1 text-xs"
+                style={{ color: 'var(--text-tertiary)' }}
+              >
+                How your interview performed across key dimensions
+              </p>
+            </div>
+
+            <div
+              className="hidden items-center gap-1.5 text-[10px] sm:flex"
+              style={{ color: 'var(--text-tertiary)' }}
+            >
+              <span
+                className="h-1.5 w-1.5 rounded-full"
+                style={{ background: '#06B6D4' }}
+              />
+              Strong
+              <span
+                className="ml-2 h-1.5 w-1.5 rounded-full"
+                style={{ background: '#F5B942' }}
+              />
+              Developing
+            </div>
+          </div>
+
+          <div className="space-y-7">
+            {scores.map((item) => {
+              const Icon = item.icon
+
+              return (
+                <div key={item.label}>
+                  <div className="mb-2 flex items-start gap-3">
+                    <div
+                      className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg"
+                      style={{
+                        background: `color-mix(in srgb, ${scoreColor(item.score)} 10%, transparent)`,
+                        color: scoreColor(item.score),
+                      }}
+                    >
+                      <Icon size={15} />
+                    </div>
+
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center justify-between gap-4">
+                        <span className="text-sm font-semibold">
+                          {item.label}
+                        </span>
+
+                        <span
+                          className="text-sm font-bold"
+                          style={{ color: scoreColor(item.score) }}
+                        >
+                          {item.score}
+                        </span>
+                      </div>
+
+                      <p
+                        className="mt-0.5 text-[11px]"
+                        style={{ color: 'var(--text-tertiary)' }}
+                      >
+                        {item.description}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div
+                    className="ml-11 h-2 overflow-hidden rounded-full"
+                    style={{ background: 'var(--border)' }}
+                  >
+                    <div
+                      className="h-full rounded-full transition-all duration-700"
+                      style={{
+                        width: `${item.score}%`,
+                        background: scoreColor(item.score),
+                      }}
+                    />
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </section>
+
+        {/* Bottom CTA */}
+        <section className="surface relative mt-6 overflow-hidden rounded-2xl p-6 sm:p-7">
+          <div
+            className="pointer-events-none absolute -right-16 -top-16 h-40 w-40 rounded-full blur-3xl"
+            style={{
+              background:
+                'color-mix(in srgb, var(--accent-2) 12%, transparent)',
+            }}
+          />
+
+          <div className="relative flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <div className="flex items-center gap-2">
+                <Sparkles
+                  size={17}
+                  style={{ color: 'var(--accent-2)' }}
+                />
+
+                <h2 className="font-display text-lg font-bold">
+                  Ready for another round?
+                </h2>
+              </div>
+
+              <p
+                className="mt-1.5 text-xs"
+                style={{ color: 'var(--text-secondary)' }}
+              >
+                Practice again and track how your performance improves.
+              </p>
+            </div>
+
+            <button
+              onClick={() => navigate('/dashboard')}
+              className="group flex items-center justify-center gap-2 rounded-xl bg-gradient-aurora px-5 py-3 text-sm font-semibold text-white shadow-md transition-all hover:-translate-y-0.5"
+            >
+              Start another interview
+              <ArrowUpRight
+                size={15}
+                className="transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5"
+              />
+            </button>
+          </div>
+        </section>
+      </main>
     </div>
   )
 }

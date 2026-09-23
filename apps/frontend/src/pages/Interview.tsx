@@ -1,8 +1,18 @@
-
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { io, Socket } from 'socket.io-client'
-import { Mic, MicOff, Clock, Volume2, VolumeX } from 'lucide-react'
+import {
+  ArrowRight,
+  CheckCircle2,
+  Clock,
+  Mic,
+  MicOff,
+  Sparkles,
+  Volume2,
+  VolumeX,
+  Wifi,
+  Send,
+} from 'lucide-react'
 import { useSessionStore } from '../store/sessionStore'
 
 interface Message {
@@ -57,8 +67,11 @@ export default function Interview() {
 
   const navigate = useNavigate()
 
-  const questionIndex =
-    messages.filter((m) => m.role === 'ai').length - 1
+  const questionCount = messages.filter((m) => m.role === 'ai').length
+  const currentQuestion = Math.min(questionCount, EXPECTED_QUESTIONS)
+
+  const progress =
+    Math.min((currentQuestion / EXPECTED_QUESTIONS) * 100, 100)
 
   const speak = useCallback(
     (text: string) => {
@@ -69,7 +82,6 @@ export default function Interview() {
       window.speechSynthesis.cancel()
 
       const utterance = new SpeechSynthesisUtterance(text)
-
       utterance.rate = 1
       utterance.pitch = 1
 
@@ -101,7 +113,6 @@ export default function Interview() {
 
     socketRef.current = socket
 
-    // Connected
     socket.on('connect', () => {
       console.log(
         'Connected to SkillMate backend:',
@@ -111,17 +122,11 @@ export default function Interview() {
       setErrorMessage('')
       setIsThinking(true)
 
-      console.log(
-        'Sending interview:start:',
-        sessionId
-      )
-
       socket.emit('interview:start', {
         sessionId,
       })
     })
 
-    // Initial / next question
     socket.on(
       'interview:question',
       ({
@@ -161,7 +166,6 @@ export default function Interview() {
       }
     )
 
-    // Backend error
     socket.on('interview:error', (msg: string) => {
       console.error(
         'Interview backend error:',
@@ -170,13 +174,11 @@ export default function Interview() {
 
       setIsThinking(false)
 
-      // Show the exact backend message.
       setErrorMessage(
         msg || 'An unexpected interview error occurred.'
       )
     })
 
-    // Socket connection error
     socket.on('connect_error', (error) => {
       console.error(
         'Socket.io connection error:',
@@ -190,7 +192,6 @@ export default function Interview() {
       )
     })
 
-    // Socket reconnecting
     socket.io.on('reconnect_attempt', (attempt) => {
       console.log(
         'Socket reconnect attempt:',
@@ -416,48 +417,169 @@ export default function Interview() {
 
   return (
     <div
-      className="min-h-screen relative overflow-hidden md:pl-56 pt-16 pb-20 md:pt-0 md:pb-0"
+      className="relative min-h-screen overflow-hidden "
       style={{
-        background:
-          'linear-gradient(180deg, var(--bg-page) 0%, var(--bg-page-2) 100%)',
-        color: 'var(--text-primary)',
-      }}
+    background:
+      'linear-gradient(180deg, var(--bg-page) 0%, var(--bg-page-2) 100%)',
+    color: 'var(--text-primary)',
+  }}
     >
-      <div className="relative z-10 max-w-3xl mx-auto px-6 py-8 flex flex-col h-[calc(100vh-9rem)] md:h-[88vh]">
+      {/* =================================================
+          AMBIENT BACKGROUND
+      ================================================= */}
+      <div
+        className="pointer-events-none absolute -right-32 -top-32 h-80 w-80 animate-[drift_10s_ease-in-out_infinite] rounded-full blur-3xl"
+        style={{
+          background:
+            'color-mix(in srgb, var(--accent-1) 10%, transparent)',
+        }}
+      />
 
-        {/* Header */}
-        <div className="mb-4">
-          <div className="flex items-center justify-between mb-2">
+      <div
+        className="pointer-events-none absolute -bottom-40 left-1/3 h-96 w-96 animate-[drift_14s_ease-in-out_infinite_reverse] rounded-full blur-3xl"
+        style={{
+          background:
+            'color-mix(in srgb, var(--accent-2) 7%, transparent)',
+        }}
+      />
 
-            <h1 className="font-display text-2xl">
-              Live mock interview
-            </h1>
+      <main className="relative z-10 mx-auto flex min-h-screen max-w-5xl flex-col px-4 pb-28 pt-20 sm:px-6 md:px-8 md:pb-8 md:pt-8">
 
-            <div className="flex items-center gap-4">
+        {/* =================================================
+            TOP BAR
+        ================================================= */}
+        <header
+          className="mb-5 animate-[fadeIn_0.45s_ease-out] rounded-2xl border px-4 py-3 shadow-sm sm:px-5"
+          style={{
+            background:
+              'color-mix(in srgb, var(--bg-page) 88%, transparent)',
+            borderColor: 'var(--border)',
+            backdropFilter: 'blur(16px)',
+          }}
+        >
+          <div className="flex items-center justify-between gap-4">
 
+            <div className="flex min-w-0 items-center gap-3">
+              <div
+                className="group relative flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-white shadow-sm transition-all duration-300 hover:scale-105 hover:rotate-2"
+                style={{
+                  background:
+                    'linear-gradient(135deg, var(--accent-1), var(--accent-2))',
+                }}
+              >
+                <Sparkles
+                  size={18}
+                  className="transition-transform duration-500 group-hover:rotate-12"
+                />
+
+                <span
+                  className="absolute inset-0 rounded-xl opacity-0 blur-md transition-opacity duration-300 group-hover:opacity-40"
+                  style={{
+                    background: 'var(--accent-1)',
+                  }}
+                />
+              </div>
+
+              <div className="min-w-0">
+                <div className="flex items-center gap-2">
+                  <h1 className="truncate font-display text-sm font-bold sm:text-base">
+                    Live interview
+                  </h1>
+
+                  <span
+                    className="hidden items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold sm:flex"
+                    style={{
+                      color: 'var(--accent-3)',
+                      background:
+                        'color-mix(in srgb, var(--accent-3) 10%, transparent)',
+                    }}
+                  >
+                    <span
+                      className="h-1.5 w-1.5 animate-pulse rounded-full"
+                      style={{
+                        background: 'var(--accent-3)',
+                      }}
+                    />
+                    LIVE
+                  </span>
+                </div>
+
+                <p
+                  className="text-[11px]"
+                  style={{
+                    color: 'var(--text-tertiary)',
+                  }}
+                >
+                  AI-powered interview practice
+                </p>
+              </div>
+            </div>
+
+            <div className="flex shrink-0 items-center gap-2 sm:gap-4">
+
+              {/* Connection */}
+              <div
+                className="hidden items-center gap-1.5 text-xs sm:flex"
+                style={{
+                  color: 'var(--text-tertiary)',
+                }}
+              >
+                <span className="relative flex h-2 w-2">
+                  <span
+                    className="absolute inline-flex h-full w-full animate-ping rounded-full opacity-40"
+                    style={{
+                      background: 'var(--accent-3)',
+                    }}
+                  />
+                  <span
+                    className="relative inline-flex h-2 w-2 rounded-full"
+                    style={{
+                      background: 'var(--accent-3)',
+                    }}
+                  />
+                </span>
+
+                <Wifi size={14} />
+                Connected
+              </div>
+
+              {/* Voice output */}
               <button
+                type="button"
                 onClick={() =>
                   setVoiceOutputEnabled(
                     (v) => !v
                   )
                 }
+                className="group flex h-9 w-9 items-center justify-center rounded-xl border transition-all duration-200 hover:scale-105 hover:shadow-sm active:scale-95"
                 style={{
-                  color:
-                    'var(--text-secondary)',
+                  borderColor: 'var(--border)',
+                  color: 'var(--text-secondary)',
+                  background: 'var(--bg-page)',
                 }}
+                title={
+                  voiceOutputEnabled
+                    ? 'Mute AI voice'
+                    : 'Enable AI voice'
+                }
               >
                 {voiceOutputEnabled ? (
-                  <Volume2 size={18} />
+                  <Volume2
+                    size={17}
+                    className="transition-transform duration-300 group-hover:scale-110"
+                  />
                 ) : (
-                  <VolumeX size={18} />
+                  <VolumeX size={17} />
                 )}
               </button>
 
+              {/* Timer */}
               <div
-                className="flex items-center gap-2 text-sm"
+                className="flex items-center gap-1.5 rounded-xl border px-3 py-2 text-xs font-semibold tabular-nums"
                 style={{
-                  color:
-                    'var(--text-secondary)',
+                  borderColor: 'var(--border)',
+                  color: 'var(--text-secondary)',
+                  background: 'var(--bg-page)',
                 }}
               >
                 <Clock size={14} />
@@ -467,221 +589,534 @@ export default function Interview() {
             </div>
           </div>
 
+          {/* Progress */}
+          <div className="mt-4">
+            <div className="mb-2 flex items-center justify-between">
+              <span
+                className="text-[11px] font-medium"
+                style={{
+                  color: 'var(--text-tertiary)',
+                }}
+              >
+                Interview progress
+              </span>
+
+              <span
+                className="text-[11px] font-semibold"
+                style={{
+                  color: 'var(--text-secondary)',
+                }}
+              >
+                {currentQuestion}/{EXPECTED_QUESTIONS}
+              </span>
+            </div>
+
+            <div
+              className="h-1.5 overflow-hidden rounded-full"
+              style={{
+                background: 'var(--border)',
+              }}
+            >
+              <div
+                className="relative h-full rounded-full transition-all duration-700 ease-out"
+                style={{
+                  width: `${progress}%`,
+                  background:
+                    'linear-gradient(90deg, var(--accent-1), var(--accent-2), var(--accent-3))',
+                }}
+              >
+                <span
+                  className="absolute right-0 top-0 h-full w-12 animate-pulse rounded-full opacity-60"
+                  style={{
+                    background:
+                      'linear-gradient(90deg, transparent, rgba(255,255,255,0.8))',
+                  }}
+                />
+              </div>
+            </div>
+          </div>
+        </header>
+
+        {/* =================================================
+            INTERVIEW AREA
+        ================================================= */}
+        <section
+          className="flex min-h-0 flex-1 animate-[fadeIn_0.6s_ease-out] flex-col overflow-hidden rounded-3xl border shadow-sm transition-all duration-300"
+          style={{
+            background:
+              'color-mix(in srgb, var(--bg-page) 92%, transparent)',
+            borderColor: 'var(--border)',
+          }}
+        >
+
+          {/* Section heading */}
           <div
-            className="w-full rounded-full h-1.5"
+            className="flex items-center justify-between border-b px-5 py-4 sm:px-6"
             style={{
-              background: 'var(--border)',
+              borderColor: 'var(--border)',
             }}
           >
+            <div>
+              <p
+                className="text-[10px] font-bold uppercase tracking-widest"
+                style={{
+                  color: 'var(--accent-1)',
+                }}
+              >
+                Question {Math.max(currentQuestion, 1)}
+              </p>
+
+              <p
+                className="mt-0.5 text-xs"
+                style={{
+                  color: 'var(--text-tertiary)',
+                }}
+              >
+                Take your time and answer naturally
+              </p>
+            </div>
+
             <div
-              className="bg-gradient-aurora h-1.5 rounded-full transition-all duration-500"
+              className="hidden items-center gap-2 rounded-full border px-3 py-1.5 text-[10px] font-medium transition-colors sm:flex"
               style={{
-                width: `${Math.min(
-                  ((questionIndex + 1) /
-                    EXPECTED_QUESTIONS) *
-                    100,
-                  100
-                )}%`,
+                borderColor: 'var(--border)',
+                color: 'var(--text-tertiary)',
               }}
-            />
+            >
+              <Mic size={12} />
+              Voice enabled
+            </div>
           </div>
-        </div>
 
-        {/* Conversation */}
-        <div className="flex-1 overflow-y-auto space-y-4 surface rounded-2xl p-5">
+          {/* =================================================
+              CONVERSATION
+          ================================================= */}
+          <div className="min-h-0 flex-1 space-y-5 overflow-y-auto px-4 py-5 sm:px-6">
 
-          {messages.map((m, i) => (
-            <div
-              key={i}
-              className={`flex ${
-                m.role === 'user'
-                  ? 'justify-end'
-                  : 'justify-start'
-              }`}
-            >
+            {/* Initial loading */}
+            {messages.length === 0 && isThinking && (
+              <div className="flex min-h-[280px] items-center justify-center animate-[fadeIn_0.5s_ease-out]">
+                <div className="text-center">
 
-              {m.role === 'ai' && (
-                <div className="w-7 h-7 rounded-full bg-gradient-aurora text-xs flex items-center justify-center mr-2 shrink-0 font-display text-white">
-                  S
+                  <div
+                    className="relative mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl"
+                    style={{
+                      background:
+                        'color-mix(in srgb, var(--accent-1) 10%, transparent)',
+                    }}
+                  >
+                    <span
+                      className="absolute inset-0 animate-ping rounded-2xl opacity-20"
+                      style={{
+                        background: 'var(--accent-1)',
+                      }}
+                    />
+
+                    <Sparkles
+                      size={24}
+                      className="relative animate-pulse"
+                      style={{
+                        color: 'var(--accent-1)',
+                      }}
+                    />
+                  </div>
+
+                  <h2 className="font-display text-lg font-semibold">
+                    Preparing your interview
+                  </h2>
+
+                  <p
+                    className="mt-1 text-xs"
+                    style={{
+                      color: 'var(--text-tertiary)',
+                    }}
+                  >
+                    Your AI interviewer is getting the first question ready.
+                  </p>
+
+                  <div className="mt-5 flex justify-center gap-1">
+                    <span
+                      className="h-1.5 w-1.5 animate-bounce rounded-full"
+                      style={{
+                        background: 'var(--accent-1)',
+                        animationDelay: '-0.3s',
+                      }}
+                    />
+                    <span
+                      className="h-1.5 w-1.5 animate-bounce rounded-full"
+                      style={{
+                        background: 'var(--accent-2)',
+                        animationDelay: '-0.15s',
+                      }}
+                    />
+                    <span
+                      className="h-1.5 w-1.5 animate-bounce rounded-full"
+                      style={{
+                        background: 'var(--accent-3)',
+                      }}
+                    />
+                  </div>
                 </div>
-              )}
-
-              <div
-                className={`max-w-[75%] px-4 py-2.5 rounded-2xl text-sm leading-relaxed ${
-                  m.role === 'user'
-                    ? 'bg-gradient-aurora text-white rounded-br-md'
-                    : 'rounded-bl-md'
-                }`}
-                style={
-                  m.role !== 'user'
-                    ? {
-                        background:
-                          'var(--border)',
-                      }
-                    : {}
-                }
-              >
-                {m.text}
               </div>
-            </div>
-          ))}
+            )}
 
-          {/* Error */}
-          {errorMessage && (
-            <div
-              className="text-center text-sm py-2"
-              style={{
-                color:
-                  'var(--text-secondary)',
-              }}
-            >
-              {errorMessage}
-            </div>
-          )}
-
-          {/* Thinking indicator */}
-          {isThinking && (
-            <div className="flex items-center gap-2">
-
+            {/* Messages */}
+            {messages.map((m, i) => (
               <div
-                className="px-4 py-2.5 rounded-2xl rounded-bl-md flex gap-1"
-                style={{
-                  background:
-                    'var(--border)',
-                }}
-              >
-                <span
-                  className="w-1.5 h-1.5 rounded-full animate-bounce [animation-delay:-0.3s]"
-                  style={{
-                    background:
-                      'var(--text-tertiary)',
-                  }}
-                />
-
-                <span
-                  className="w-1.5 h-1.5 rounded-full animate-bounce [animation-delay:-0.15s]"
-                  style={{
-                    background:
-                      'var(--text-tertiary)',
-                  }}
-                />
-
-                <span
-                  className="w-1.5 h-1.5 rounded-full animate-bounce"
-                  style={{
-                    background:
-                      'var(--text-tertiary)',
-                  }}
-                />
-              </div>
-
-            </div>
-          )}
-
-          <div ref={bottomRef} />
-        </div>
-
-        {/* Voice animation */}
-        {isListening && (
-          <div className="flex items-center justify-center gap-1 mt-3 h-6">
-
-            {[...Array(20)].map((_, i) => (
-              <span
                 key={i}
-                className="w-1 rounded-full animate-pulse"
+                className={`flex animate-[fadeIn_0.4s_ease-out] ${
+                  m.role === 'user'
+                    ? 'justify-end'
+                    : 'justify-start'
+                }`}
                 style={{
-                  height: `${8 + Math.random() * 16}px`,
-                  background:
-                    'linear-gradient(180deg, var(--accent-1), var(--accent-3))',
-                  animationDelay: `${i * 60}ms`,
-                  animationDuration: '600ms',
+                  animationDelay: `${Math.min(i * 40, 200)}ms`,
                 }}
-              />
+              >
+                {m.role === 'ai' && (
+                  <div className="mr-3 flex shrink-0 flex-col items-center">
+                    <div
+                      className="group relative flex h-9 w-9 items-center justify-center rounded-xl text-white shadow-sm transition-all duration-300 hover:scale-105"
+                      style={{
+                        background:
+                          'linear-gradient(135deg, var(--accent-1), var(--accent-2))',
+                      }}
+                    >
+                      <Sparkles
+                        size={16}
+                        className="transition-transform duration-500 group-hover:rotate-12"
+                      />
+
+                      <span
+                        className="absolute inset-0 -z-10 rounded-xl opacity-0 blur-md transition-opacity group-hover:opacity-50"
+                        style={{
+                          background: 'var(--accent-1)',
+                        }}
+                      />
+                    </div>
+                  </div>
+                )}
+
+                <div
+                  className={`max-w-[88%] sm:max-w-[72%] ${
+                    m.role === 'user'
+                      ? 'items-end'
+                      : 'items-start'
+                  }`}
+                >
+                  <p
+                    className="mb-1.5 px-1 text-[10px] font-semibold"
+                    style={{
+                      color: 'var(--text-tertiary)',
+                    }}
+                  >
+                    {m.role === 'user'
+                      ? 'You'
+                      : 'SkillMate AI'}
+                  </p>
+
+                  <div
+                    className={`rounded-2xl px-4 py-3 text-sm leading-6 transition-all duration-200 ${
+                      m.role === 'user'
+                        ? 'rounded-br-md text-white shadow-sm hover:shadow-md'
+                        : 'rounded-bl-md border hover:shadow-sm'
+                    }`}
+                    style={
+                      m.role === 'user'
+                        ? {
+                            background:
+                              'linear-gradient(135deg, var(--accent-1), var(--accent-2))',
+                          }
+                        : {
+                            background:
+                              'color-mix(in srgb, var(--border) 55%, transparent)',
+                            borderColor: 'var(--border)',
+                          }
+                    }
+                  >
+                    {m.text}
+                  </div>
+                </div>
+              </div>
             ))}
 
+            {/* Error */}
+            {errorMessage && (
+              <div
+                className="mx-auto max-w-xl animate-[fadeIn_0.3s_ease-out] rounded-2xl border px-4 py-3 text-center text-xs"
+                style={{
+                  borderColor:
+                    'color-mix(in srgb, #ef4444 25%, var(--border))',
+                  background:
+                    'color-mix(in srgb, #ef4444 7%, transparent)',
+                  color: 'var(--text-secondary)',
+                }}
+              >
+                {errorMessage}
+              </div>
+            )}
+
+            {/* Thinking */}
+            {isThinking && messages.length > 0 && (
+              <div className="flex animate-[fadeIn_0.3s_ease-out] items-start gap-3">
+                <div
+                  className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-white shadow-sm"
+                  style={{
+                    background:
+                      'linear-gradient(135deg, var(--accent-1), var(--accent-2))',
+                  }}
+                >
+                  <span
+                    className="absolute inset-0 animate-ping rounded-xl opacity-20"
+                    style={{
+                      background: 'var(--accent-1)',
+                    }}
+                  />
+
+                  <Sparkles
+                    size={16}
+                    className="relative animate-pulse"
+                  />
+                </div>
+
+                <div
+                  className="rounded-2xl rounded-bl-md border px-4 py-3"
+                  style={{
+                    background:
+                      'color-mix(in srgb, var(--border) 55%, transparent)',
+                    borderColor: 'var(--border)',
+                  }}
+                >
+                  <div className="flex items-center gap-1">
+                    <span
+                      className="h-1.5 w-1.5 animate-bounce rounded-full"
+                      style={{
+                        background: 'var(--accent-1)',
+                        animationDelay: '-0.3s',
+                      }}
+                    />
+                    <span
+                      className="h-1.5 w-1.5 animate-bounce rounded-full"
+                      style={{
+                        background: 'var(--accent-2)',
+                        animationDelay: '-0.15s',
+                      }}
+                    />
+                    <span
+                      className="h-1.5 w-1.5 animate-bounce rounded-full"
+                      style={{
+                        background: 'var(--accent-3)',
+                      }}
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+
+            <div ref={bottomRef} />
           </div>
-        )}
 
-        {/* Input */}
-        <div className="flex gap-2 mt-4">
-
-          <textarea
-            rows={2}
-            value={input}
-            onChange={(e) =>
-              setInput(e.target.value)
-            }
-            onKeyDown={handleKeyDown}
-            placeholder={
-              isListening
-                ? 'Listening…'
-                : 'Type your answer… (Enter to send)'
-            }
-            className="flex-1 rounded-lg p-3 text-sm resize-none focus:outline-none focus:ring-2"
+          {/* =================================================
+              ANSWER COMPOSER
+          ================================================= */}
+          <div
+            className="border-t px-4 py-4 sm:px-6"
             style={{
+              borderColor: 'var(--border)',
               background:
-                'var(--bg-page)',
-              border:
-                '1px solid var(--border)',
-              color:
-                'var(--text-primary)',
+                'color-mix(in srgb, var(--bg-page-2) 45%, transparent)',
+            }}
+          >
+
+            {/* Voice visualizer */}
+            {isListening && (
+              <div className="mb-3 flex h-7 items-center justify-center gap-1 animate-[fadeIn_0.25s_ease-out]">
+                {[...Array(24)].map((_, i) => (
+                  <span
+                    key={i}
+                    className="w-1 animate-pulse rounded-full"
+                    style={{
+                      height: `${8 + ((i * 7) % 16)}px`,
+                      background:
+                        'linear-gradient(180deg, var(--accent-1), var(--accent-3))',
+                      animationDelay: `${i * 50}ms`,
+                      animationDuration: '600ms',
+                    }}
+                  />
+                ))}
+              </div>
+            )}
+
+            {/* Composer */}
+            <div
+              className="rounded-2xl border p-2 transition-all duration-300"
+              style={{
+                borderColor: isListening
+                  ? 'var(--accent-1)'
+                  : 'var(--border)',
+                background: 'var(--bg-page)',
+                boxShadow: isListening
+                  ? '0 0 0 3px color-mix(in srgb, var(--accent-1) 8%, transparent), 0 12px 35px color-mix(in srgb, var(--accent-1) 8%, transparent)'
+                  : 'none',
+              }}
+            >
+              <div className="flex items-end gap-2">
+
+                <textarea
+                  rows={2}
+                  value={input}
+                  onChange={(e) =>
+                    setInput(e.target.value)
+                  }
+                  onKeyDown={handleKeyDown}
+                  placeholder={
+                    isListening
+                      ? 'Listening to your answer…'
+                      : 'Type your answer here…'
+                  }
+                  disabled={isThinking}
+                  className="min-h-[56px] flex-1 resize-none bg-transparent px-3 py-2 text-sm leading-6 outline-none placeholder:opacity-50 disabled:cursor-not-allowed"
+                  style={{
+                    color: 'var(--text-primary)',
+                  }}
+                />
+
+                <div className="flex items-center gap-1.5 pb-1">
+
+                  {/* Mic */}
+                  <button
+                    type="button"
+                    onClick={toggleListening}
+                    disabled={!voiceSupported || isThinking}
+                    className={`relative flex h-10 w-10 items-center justify-center rounded-xl transition-all duration-200 hover:scale-105 active:scale-95 disabled:cursor-not-allowed disabled:opacity-30 ${
+                      isListening
+                        ? 'animate-pulse'
+                        : ''
+                    }`}
+                    style={
+                      isListening
+                        ? {
+                            background:
+                              'linear-gradient(135deg, #f5605c, #f5b942)',
+                            color: 'white',
+                            boxShadow:
+                              '0 0 0 4px color-mix(in srgb, #f5605c 12%, transparent)',
+                          }
+                        : {
+                            color: 'var(--text-secondary)',
+                            background:
+                              'color-mix(in srgb, var(--border) 55%, transparent)',
+                          }
+                    }
+                    title={
+                      isListening
+                        ? 'Stop recording'
+                        : 'Use voice input'
+                    }
+                  >
+                    {isListening ? (
+                      <MicOff size={17} />
+                    ) : (
+                      <Mic size={17} />
+                    )}
+                  </button>
+
+                  {/* Send */}
+                  <button
+                    type="button"
+                    onClick={handleSend}
+                    disabled={
+                      isThinking ||
+                      !input.trim()
+                    }
+                    className="group flex h-10 items-center gap-2 rounded-xl px-4 text-xs font-semibold text-white shadow-sm transition-all duration-200 hover:scale-[1.02] hover:shadow-lg active:scale-95 disabled:cursor-not-allowed disabled:opacity-35 disabled:hover:scale-100"
+                    style={{
+                      background:
+                        'linear-gradient(135deg, var(--accent-1), var(--accent-2))',
+                    }}
+                  >
+                    <span className="hidden sm:inline">
+                      Send answer
+                    </span>
+
+                    <Send
+                      size={15}
+                      className="transition-transform duration-300 group-hover:translate-x-0.5 group-hover:-translate-y-0.5"
+                    />
+                  </button>
+
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-2 flex items-center justify-between px-1">
+              <p
+                className="text-[10px]"
+                style={{
+                  color: 'var(--text-tertiary)',
+                }}
+              >
+                {isListening
+                  ? 'Speak naturally — your answer will appear above.'
+                  : 'Press Enter to send · Shift + Enter for a new line'}
+              </p>
+
+              {voiceSupported && (
+                <div
+                  className="hidden items-center gap-1.5 text-[10px] sm:flex"
+                  style={{
+                    color: 'var(--text-tertiary)',
+                  }}
+                >
+                  <Mic size={11} />
+                  Voice ready
+                </div>
+              )}
+            </div>
+
+            {!voiceSupported && (
+              <p
+                className="mt-2 text-center text-[10px]"
+                style={{
+                  color: 'var(--text-tertiary)',
+                }}
+              >
+                Voice input isn't supported in this browser. Try Chrome or Edge.
+              </p>
+            )}
+          </div>
+        </section>
+
+        {/* =================================================
+            BOTTOM STATUS
+        ================================================= */}
+        <div className="mt-3 hidden animate-[fadeIn_0.8s_ease-out] items-center justify-center gap-2 md:flex">
+          <CheckCircle2
+            size={13}
+            style={{
+              color: 'var(--accent-3)',
             }}
           />
 
-          <button
-            onClick={toggleListening}
-            disabled={!voiceSupported}
-            className={
-              isListening
-                ? 'rounded-lg px-4 bg-gradient-to-r from-[#F5605C] to-[#F5B942] text-white'
-                : 'rounded-lg px-4 transition-colors disabled:opacity-30'
-            }
-            style={
-              !isListening
-                ? {
-                    border:
-                      '1px solid var(--border)',
-                    color:
-                      'var(--text-secondary)',
-                  }
-                : {}
-            }
-          >
-            {isListening ? (
-              <MicOff size={18} />
-            ) : (
-              <Mic size={18} />
-            )}
-          </button>
-
-          <button
-            onClick={handleSend}
-            disabled={
-              isThinking ||
-              !input.trim()
-            }
-            className="bg-gradient-aurora text-white px-6 rounded-lg font-semibold shadow-md hover:shadow-lg transition-shadow disabled:opacity-40 disabled:cursor-not-allowed"
-          >
-            {isThinking ? '...' : 'Send'}
-          </button>
-
-        </div>
-
-        {!voiceSupported && (
-          <p
-            className="text-xs mt-2 text-center"
+          <span
+            className="text-[10px]"
             style={{
-              color:
-                'var(--text-tertiary)',
+              color: 'var(--text-tertiary)',
             }}
           >
-            Voice input isn't supported in this
-            browser. Try Chrome or Edge.
-          </p>
-        )}
+            Your responses are being evaluated by SkillMate AI
+          </span>
 
-      </div>
+          <ArrowRight
+            size={12}
+            className="transition-transform duration-300 hover:translate-x-1"
+            style={{
+              color: 'var(--text-tertiary)',
+            }}
+          />
+        </div>
+
+      </main>
     </div>
   )
 }
-

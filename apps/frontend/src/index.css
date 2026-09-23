@@ -1,94 +1,249 @@
 @import "tailwindcss";
 
+/* =========================================================
+   SKILLMATE AI — GLOBAL DESIGN SYSTEM
+   Premium Indigo / Violet / Cyan AI SaaS Palette
+   ========================================================= */
+
 :root,
 [data-theme="light"] {
-  --bg-page: #FAFAFC;
-  --bg-page-2: #F0F0F7;
+  --bg-page: #F8FAFC;
+  --bg-page-2: #EEF2FF;
   --bg-surface: #FFFFFF;
-  --text-primary: #12131A;
-  --text-secondary: #5A5C6E;
-  --text-tertiary: #8A8C9E;
-  --border: rgba(18, 19, 26, 0.1);
+
+  --text-primary: #0F172A;
+  --text-secondary: #475569;
+  --text-tertiary: #94A3B8;
+
+  --border: rgba(15, 23, 42, 0.09);
+
   --accent-1: #6366F1;
-  --accent-2: #A855F7;
+  --accent-2: #8B5CF6;
   --accent-3: #06B6D4;
-  --shadow-glow: rgba(99, 102, 241, 0.15);
+
+  --shadow-glow: rgba(99, 102, 241, 0.16);
 }
 
 [data-theme="dark"] {
-  --bg-page: #0B0E1A;
-  --bg-page-2: #131832;
-  --bg-surface: rgba(255, 255, 255, 0.08);
-  --text-primary: #FFFFFF;
-  --text-secondary: rgba(255, 255, 255, 0.65);
-  --text-tertiary: rgba(255, 255, 255, 0.45);
-  --border: rgba(255, 255, 255, 0.15);
-  --accent-1: #6366F1;
-  --accent-2: #A855F7;
+  --bg-page: #080B18;
+  --bg-page-2: #11172A;
+  --bg-surface: rgba(255, 255, 255, 0.055);
+
+  --text-primary: #F8FAFC;
+  --text-secondary: #CBD5E1;
+  --text-tertiary: #7C8AA5;
+
+  --border: rgba(148, 163, 184, 0.14);
+
+  --accent-1: #818CF8;
+  --accent-2: #A78BFA;
   --accent-3: #22D3EE;
-  --shadow-glow: rgba(139, 92, 246, 0.4);
+
+  --shadow-glow: rgba(129, 140, 248, 0.24);
 }
+
+/* =========================================================
+   BASE
+   ========================================================= */
 
 html {
   scroll-behavior: smooth;
 }
 
 body {
-  background: linear-gradient(180deg, var(--bg-page) 0%, var(--bg-page-2) 100%);
+  margin: 0;
+  background:
+    linear-gradient(
+      180deg,
+      var(--bg-page) 0%,
+      var(--bg-page-2) 100%
+    );
   background-attachment: fixed;
   color: var(--text-primary);
   font-family: 'Inter', sans-serif;
-  transition: background 0.25s ease, color 0.25s ease;
+  transition:
+    background 0.25s ease,
+    color 0.25s ease;
 }
+
+/* =========================================================
+   TYPOGRAPHY
+   ========================================================= */
 
 .font-display {
   font-family: 'Fraunces', serif;
 }
 
+/* =========================================================
+   SELECTION
+   ========================================================= */
+
 ::selection {
   background-color: var(--accent-2);
-  color: white;
+  color: #FFFFFF;
 }
 
+/* =========================================================
+   SCROLLBAR
+   ========================================================= */
+
 ::-webkit-scrollbar {
-  width: 10px;
+  width: 9px;
 }
+
 ::-webkit-scrollbar-track {
   background: var(--bg-page);
 }
+
 ::-webkit-scrollbar-thumb {
-  background-color: var(--border);
-  border-radius: 8px;
+  background: linear-gradient(
+    180deg,
+    var(--accent-1),
+    var(--accent-2)
+  );
+  border-radius: 999px;
   border: 2px solid var(--bg-page);
 }
 
+/* =========================================================
+   ACCESSIBILITY
+   ========================================================= */
+
 :focus-visible {
   outline: 2px solid var(--accent-1);
-  outline-offset: 2px;
+  outline-offset: 3px;
 }
 
+/* =========================================================
+   GRADIENT TEXT
+   ========================================================= */
+
 .text-gradient {
-  background: linear-gradient(90deg, var(--accent-1), var(--accent-2), var(--accent-3));
+  background: linear-gradient(
+    90deg,
+    var(--accent-1),
+    var(--accent-2),
+    var(--accent-3)
+  );
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
 }
 
+/* =========================================================
+   PRIMARY AURORA GRADIENT
+   ========================================================= */
+
 .bg-gradient-aurora {
-  background: linear-gradient(90deg, var(--accent-1), var(--accent-2), var(--accent-3));
+  background: linear-gradient(
+    135deg,
+    var(--accent-1),
+    var(--accent-2),
+    var(--accent-3)
+  );
 }
+
+/* =========================================================
+   SURFACE
+   ========================================================= */
 
 .surface {
   background: var(--bg-surface);
   border: 1px solid var(--border);
 }
 
+/* =========================================================
+   SUBTLE AI GLOW
+   ========================================================= */
+
 @keyframes drift {
-  0%, 100% { transform: translate(0, 0) scale(1); }
-  50% { transform: translate(40px, -30px) scale(1.1); }
+  0%,
+  100% {
+    transform: translate(0, 0) scale(1);
+  }
+
+  50% {
+    transform: translate(40px, -30px) scale(1.1);
+  }
 }
 
+/* =========================================================
+   FADE IN
+   ========================================================= */
+
 @keyframes fadeIn {
-  from { opacity: 0; transform: translateY(8px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+/* =========================================================
+   PAGE TRANSITIONS
+   ========================================================= */
+
+@keyframes pageEnter {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-page-enter {
+  animation: pageEnter 0.45s ease-out both;
+}
+
+/* =========================================================
+   DASHBOARD MICRO ANIMATIONS
+   ========================================================= */
+
+@keyframes dashboardCardEnter {
+  from {
+    opacity: 0;
+    transform: translateY(14px) scale(0.985);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes dashboardProgress {
+  from {
+    width: 0;
+  }
+}
+
+@keyframes modalEnter {
+  from {
+    opacity: 0;
+    transform: translateY(18px) scale(0.97);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.animate-dashboard-card {
+  animation: dashboardCardEnter 0.55s ease-out both;
+}
+
+.animate-dashboard-progress {
+  animation: dashboardProgress 1s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.animate-modal-enter {
+  animation: modalEnter 0.25s ease-out both;
 }
