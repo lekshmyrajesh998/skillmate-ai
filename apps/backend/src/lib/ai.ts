@@ -11,7 +11,15 @@ const primaryModel = genAI.getGenerativeModel({
   model: 'gemini-3.8-flash',
 })
 
-const fallbackModel = genAI.getGenerativeModel({
+const fallbackModel1 = genAI.getGenerativeModel({
+  model: 'gemini-3.7-flash',
+})
+
+const fallbackModel2 = genAI.getGenerativeModel({
+  model: 'gemini-3.6-flash',
+})
+
+const fallbackModel3 = genAI.getGenerativeModel({
   model: 'gemini-3.5-flash',
 })
 
@@ -118,27 +126,53 @@ Respond with your next message now.`
 
 Begin the interview now with your first question.`
 
-  // Try the primary Gemini model first
+  // Try Gemini 3.8 Flash first
   let result = await generateWithFallback(
     primaryModel,
     prompt,
     'gemini-3.8-flash'
   )
 
-  // If the primary model fails, immediately try the fallback model
+  // Try Gemini 3.7 Flash if 3.8 fails
   if (!result) {
     console.warn(
-      'Primary Gemini model unavailable. Trying fallback model...'
+      'Gemini 3.8 unavailable. Trying Gemini 3.7...'
     )
 
     result = await generateWithFallback(
-      fallbackModel,
+      fallbackModel1,
+      prompt,
+      'gemini-3.7-flash'
+    )
+  }
+
+  // Try Gemini 3.6 Flash if 3.7 fails
+  if (!result) {
+    console.warn(
+      'Gemini 3.7 unavailable. Trying Gemini 3.6...'
+    )
+
+    result = await generateWithFallback(
+      fallbackModel2,
+      prompt,
+      'gemini-3.6-flash'
+    )
+  }
+
+  // Try Gemini 3.5 Flash if 3.6 fails
+  if (!result) {
+    console.warn(
+      'Gemini 3.6 unavailable. Trying Gemini 3.5...'
+    )
+
+    result = await generateWithFallback(
+      fallbackModel3,
       prompt,
       'gemini-3.5-flash'
     )
   }
 
-  // If both models fail, return an error
+  // If all models fail
   if (!result) {
     throw new Error(
       'AI service is temporarily unavailable. Please try again in a moment.'
