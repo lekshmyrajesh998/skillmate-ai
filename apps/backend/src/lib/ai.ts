@@ -8,7 +8,7 @@ const genAI = new GoogleGenerativeAI(
 )
 
 const primaryModel = genAI.getGenerativeModel({
-  model: 'gemini-3.6-flash',
+  model: 'gemini-3.8-flash',
 })
 
 const fallbackModel = genAI.getGenerativeModel({
@@ -90,11 +90,14 @@ export async function generateNextQuestion(
   const systemPrompt = `You are conducting a live mock job interview. The candidate's resume: "${resumeText}". The job they're targeting: "${jobDescription}".
 
 ${difficultyGuidance[difficulty] || difficultyGuidance.mid}
+
 ${roleGuidance[roleType] || roleGuidance.sde}
 
 Ask one focused interview question at a time, grounded in their actual experience and the target role. If this is a follow-up, react briefly to their last answer, then ask the next question. Keep questions concise — 1-2 sentences.
 
-This will be question number ${questionCount + 1}. If this is question 5 or later, instead of asking a new question, wrap up warmly and end your message with exactly this marker on its own line: [INTERVIEW_COMPLETE]`
+This will be question number ${questionCount + 1}. If this is question 5 or later, instead of asking a new question, wrap up warmly and end your message with exactly this marker on its own line:
+
+[INTERVIEW_COMPLETE]`
 
   const historyText = conversationHistory
     .map(
@@ -119,7 +122,7 @@ Begin the interview now with your first question.`
   let result = await generateWithFallback(
     primaryModel,
     prompt,
-    'gemini-3.6-flash'
+    'gemini-3.8-flash'
   )
 
   // If the primary model fails, immediately try the fallback model
