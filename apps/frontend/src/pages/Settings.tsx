@@ -7,7 +7,6 @@ import {
   Palette,
   ShieldAlert,
   Calendar,
-  Check,
   ChevronRight,
   Eye,
   EyeOff,

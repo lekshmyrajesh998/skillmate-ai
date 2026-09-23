@@ -7,7 +7,6 @@ import {
   CheckCircle2,
   Download,
   FileText,
-  Loader2,
   Sparkles,
   Target,
   TrendingUp,

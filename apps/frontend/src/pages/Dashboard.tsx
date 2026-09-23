@@ -7,7 +7,7 @@ import {
   BriefcaseBusiness,
   CheckCircle2,
   ChevronDown,
-  Clock3,
+ 
   FileText,
   Flame,
   History,
@@ -21,7 +21,6 @@ import {
   Target,
   TrendingUp,
   Upload,
-  User,
   X,
   Zap,
 } from 'lucide-react'
@@ -41,24 +40,6 @@ import {api} from '../lib/api'
 import { Skeleton } from '../components/Skeleton'
 import PageTransition from '../components/PageTransition'
 
-const KNOWN_SKILLS = [
-  'React',
-  'JavaScript',
-  'TypeScript',
-  'Node.js',
-  'Express',
-  'Java',
-  'Python',
-  'SQL',
-  'PostgreSQL',
-  'AWS',
-  'Docker',
-  'Kubernetes',
-  'Git',
-  'REST APIs',
-  'Machine Learning',
-  'System Design',
-]
 
 const DIFFICULTIES = [
   { value: 'junior', label: 'Junior', description: 'Foundational questions' },
@@ -149,14 +130,12 @@ export default function Dashboard() {
   const navigate = useNavigate()
 
   const userName = useAuthStore((state) => state.userName)
-  const userEmail = useAuthStore((state) => state.userEmail)
-  const profileImage = useAuthStore((state) => state.profileImage)
-  const logout = useAuthStore((state) => state.logout)
+
 
   const setSessionId = useSessionStore((state) => state.setSessionId)
 
   const [onboardingOpen, setOnboardingOpen] = useState(false)
-  const [profileOpen, setProfileOpen] = useState(false)
+
 
   const [resumeFile, setResumeFile] = useState<File | null>(null)
   const [resumeText, setResumeText] = useState('')
@@ -183,16 +162,7 @@ export default function Dashboard() {
   const [recentSessions, setRecentSessions] = useState<SessionSummary[]>([])
   const [loading, setLoading] = useState(true)
 
-  const initials = useMemo(() => {
-    if (!userName) return 'U'
-
-    return userName
-      .split(' ')
-      .filter(Boolean)
-      .slice(0, 2)
-      .map((name) => name[0]?.toUpperCase())
-      .join('')
-  }, [userName])
+  
 
   const firstName = useMemo(() => {
     return userName?.split(' ')[0] || 'there'
