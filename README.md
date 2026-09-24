@@ -68,6 +68,10 @@ Real-Time Interview Session
             ↓ 
 Feedback & Performance Report**
 
+**App Demo**
+
+SKILLMATE - AI APP DISPLAY : https://drive.google.com/drive/folders/1bZKqPotQXPapYSFwCV5Jr0nF38k9XGbZ
+
 **Getting Started**
 
 Prerequisites
